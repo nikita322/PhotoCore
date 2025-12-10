@@ -1,0 +1,264 @@
+{{define "albums.html"}}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Альбомы - PhotoCore</title>
+    <style>
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #262626;
+            --text-primary: #e5e5e5;
+            --text-secondary: #a3a3a3;
+            --accent: #3b82f6;
+            --border: #333333;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        .header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+        .main-nav { display: flex; gap: 0.5rem; }
+        .nav-link { padding: 0.5rem 1rem; color: var(--text-secondary); border-radius: 6px; transition: all 0.2s; }
+        .nav-link:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+        .nav-link.active { color: var(--text-primary); background-color: var(--accent); }
+        .main { padding: 2rem; }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .page-title { font-size: 1.5rem; }
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-primary { background-color: var(--accent); color: white; }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-secondary { background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+        .btn-secondary:hover { background-color: var(--bg-hover); }
+        .albums-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+        .album-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .album-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+        }
+        .album-cover {
+            aspect-ratio: 16/9;
+            background-color: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: var(--text-secondary);
+        }
+        .album-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .album-info {
+            padding: 1rem;
+        }
+        .album-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .album-meta {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 4rem;
+            color: var(--text-secondary);
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            min-width: 400px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/gallery" class="logo">PhotoCore</a>
+        <nav class="main-nav">
+            <a href="/gallery" class="nav-link">Галерея</a>
+            <a href="/albums" class="nav-link active">Альбомы</a>
+            <a href="/favorites" class="nav-link">Избранное</a>
+            <a href="/map" class="nav-link">Карта</a>
+            <a href="/search" class="nav-link">Поиск</a>
+        </nav>
+    </header>
+
+    <main class="main">
+        <div class="page-header">
+            <h1 class="page-title">Альбомы</h1>
+            <button class="btn btn-primary" onclick="showCreateModal()">+ Создать альбом</button>
+        </div>
+
+        {{if .Albums}}
+        <div class="albums-grid">
+            {{range .Albums}}
+            <a href="/albums/{{.ID}}" class="album-card">
+                <div class="album-cover">
+                    {{if .CoverID}}
+                    <img src="/media/{{.CoverID}}/thumb/medium" alt="{{.Name}}">
+                    {{else}}
+                    📁
+                    {{end}}
+                </div>
+                <div class="album-info">
+                    <div class="album-name">{{.Name}}</div>
+                    <div class="album-meta">{{.MediaCount}} фото</div>
+                </div>
+            </a>
+            {{end}}
+        </div>
+        {{else}}
+        <div class="empty-state">
+            <h3>Нет альбомов</h3>
+            <p>Создайте первый альбом для организации фотографий</p>
+        </div>
+        {{end}}
+    </main>
+
+    <div class="modal" id="create-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Создать альбом</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="create-form">
+                <div class="form-group">
+                    <label>Название</label>
+                    <input type="text" class="form-input" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label>Описание</label>
+                    <input type="text" class="form-input" name="description">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Создать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showCreateModal() {
+            document.getElementById('create-modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('create-modal').classList.remove('active');
+        }
+
+        document.getElementById('create-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            fetch('/api/albums', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: formData.get('name'),
+                    description: formData.get('description')
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                window.location.href = '/albums/' + data.id;
+            })
+            .catch(err => alert('Ошибка: ' + err.message));
+        });
+    </script>
+</body>
+</html>
+{{end}}

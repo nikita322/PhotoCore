@@ -1,0 +1,161 @@
+{{define "favorites.html"}}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Избранное - PhotoCore</title>
+    <style>
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #262626;
+            --text-primary: #e5e5e5;
+            --text-secondary: #a3a3a3;
+            --accent: #3b82f6;
+            --border: #333333;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        .header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+        .main-nav { display: flex; gap: 0.5rem; }
+        .nav-link { padding: 0.5rem 1rem; color: var(--text-secondary); border-radius: 6px; transition: all 0.2s; }
+        .nav-link:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+        .nav-link.active { color: var(--text-primary); background-color: var(--accent); }
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-primary { background-color: var(--accent); color: white; }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-secondary { background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+        .btn-secondary:hover { background-color: var(--bg-hover); }
+        .main { padding: 2rem; }
+        .page-header { margin-bottom: 2rem; }
+        .page-title { font-size: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .page-title span { color: gold; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .media-card {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: var(--bg-secondary);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .media-card:hover { transform: scale(1.02); }
+        .media-card img { width: 100%; height: 100%; object-fit: cover; }
+        .media-card .overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 0.5rem;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .media-card:hover .overlay { opacity: 1; }
+        .media-card .filename { font-size: 0.75rem; color: white; }
+        .media-card .favorite-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: gold;
+            text-shadow: 0 0 3px black;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 4rem;
+            color: var(--text-secondary);
+        }
+        .empty-state h3 { margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/gallery" class="logo">PhotoCore</a>
+        <nav class="main-nav">
+            <a href="/gallery" class="nav-link">Галерея</a>
+            <a href="/albums" class="nav-link">Альбомы</a>
+            <a href="/favorites" class="nav-link active">Избранное</a>
+            <a href="/map" class="nav-link">Карта</a>
+            <a href="/search" class="nav-link">Поиск</a>
+        </nav>
+    </header>
+
+    <main class="main">
+        <div class="page-header">
+            <h1 class="page-title"><span>★</span> Избранное</h1>
+        </div>
+
+        {{if .Media}}
+        <div class="grid">
+            {{range .Media}}
+            <div class="media-card" data-id="{{.ID}}" onclick="window.location='/view/{{.ID}}'">
+                <img src="/media/{{.ID}}/thumb/small" alt="{{.Filename}}" loading="lazy">
+                <button class="favorite-btn" onclick="toggleFavorite('{{.ID}}', event)">★</button>
+                <div class="overlay">
+                    <div class="filename">{{.Filename}}</div>
+                </div>
+            </div>
+            {{end}}
+        </div>
+        {{else}}
+        <div class="empty-state">
+            <h3>Нет избранных</h3>
+            <p>Нажмите ★ на любом фото, чтобы добавить в избранное</p>
+        </div>
+        {{end}}
+    </main>
+
+    <script>
+        function toggleFavorite(id, event) {
+            event.stopPropagation();
+            fetch('/api/media/' + id + '/favorite', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.is_favorite) {
+                        event.target.closest('.media-card').remove();
+                    }
+                })
+                .catch(err => alert('Ошибка: ' + err.message));
+        }
+    </script>
+</body>
+</html>
+{{end}}

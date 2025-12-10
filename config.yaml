@@ -1,0 +1,55 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+
+storage:
+  media_paths:
+    - "./testmedia"  # Путь к медиа-файлам (измените на свой)
+  cache_path: "./cache"
+  db_path: "./data/photocore.db"
+
+thumbnails:
+  small: 300
+  medium: 600
+  large: 1200
+  quality: 85
+
+auth:
+  session_secret: "change-me-in-production-use-random-32-bytes"
+  session_max_age: 86400  # 24 часа
+  # Начальный админ (создается при первом запуске)
+  admin_username: "admin"
+  admin_password: "admin"  # Измените после первого входа!
+
+scan:
+  extensions:
+    images:
+      - ".jpg"
+      - ".jpeg"
+      - ".png"
+      - ".gif"
+      - ".webp"
+      - ".heic"
+    videos:
+      - ".mp4"
+      - ".mov"
+      - ".avi"
+      - ".mkv"
+      - ".webm"
+    raw:
+      - ".raw"
+      - ".cr2"
+      - ".cr3"
+      - ".nef"
+      - ".nrw"
+      - ".arw"
+      - ".srf"
+      - ".dng"
+      - ".orf"
+      - ".raf"
+      - ".rw2"
+
+# Внешние инструменты (для RAW и видео)
+tools:
+  dcraw: "dcraw"      # Путь к dcraw для RAW-файлов
+  ffmpeg: "ffmpeg"    # Путь к ffmpeg для видео

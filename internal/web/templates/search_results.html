@@ -1,0 +1,28 @@
+{{define "search_results.html"}}
+<div class="results-info">
+    Найдено: {{.TotalCount}} {{if .Query}}по запросу "{{.Query}}"{{end}}
+</div>
+{{if .Media}}
+<div class="grid">
+    {{range .Media}}
+    <div class="media-card" data-id="{{.ID}}" onclick="window.location='/view/{{.ID}}'">
+        <img src="/media/{{.ID}}/thumb/small" alt="{{.Filename}}" loading="lazy">
+        {{if .IsFavorite}}<span class="favorite-badge">★</span>{{end}}
+        <div class="overlay">
+            <div class="filename">{{.Filename}}</div>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{if .HasMore}}
+<div style="text-align: center; margin-top: 2rem;">
+    <button class="btn btn-secondary" onclick="loadMore()">Загрузить ещё</button>
+</div>
+{{end}}
+{{else}}
+<div class="empty-state">
+    <h3>Ничего не найдено</h3>
+    <p>Попробуйте изменить параметры поиска</p>
+</div>
+{{end}}
+{{end}}

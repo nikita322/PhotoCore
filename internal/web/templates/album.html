@@ -1,0 +1,199 @@
+{{define "album.html"}}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Album.Name}} - PhotoCore</title>
+    <style>
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #262626;
+            --text-primary: #e5e5e5;
+            --text-secondary: #a3a3a3;
+            --accent: #3b82f6;
+            --border: #333333;
+            --error: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        .header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+        .main-nav { display: flex; gap: 0.5rem; }
+        .nav-link { padding: 0.5rem 1rem; color: var(--text-secondary); border-radius: 6px; transition: all 0.2s; }
+        .nav-link:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+        .nav-link.active { color: var(--text-primary); background-color: var(--accent); }
+        .main { padding: 2rem; }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+        }
+        .album-info h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+        .album-info p { color: var(--text-secondary); }
+        .album-actions { display: flex; gap: 0.5rem; }
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-primary { background-color: var(--accent); color: white; }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-secondary { background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+        .btn-secondary:hover { background-color: var(--bg-hover); }
+        .btn-danger { background-color: var(--error); color: white; }
+        .btn-danger:hover { opacity: 0.9; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .media-card {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: var(--bg-secondary);
+            cursor: pointer;
+        }
+        .media-card img { width: 100%; height: 100%; object-fit: cover; }
+        .media-card .remove-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            width: 24px;
+            height: 24px;
+            background-color: rgba(0,0,0,0.7);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: none;
+        }
+        .media-card:hover .remove-btn { display: block; }
+        .empty-state {
+            text-align: center;
+            padding: 4rem;
+            color: var(--text-secondary);
+        }
+        .breadcrumbs {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/gallery" class="logo">PhotoCore</a>
+        <nav class="main-nav">
+            <a href="/gallery" class="nav-link">Галерея</a>
+            <a href="/albums" class="nav-link active">Альбомы</a>
+            <a href="/favorites" class="nav-link">Избранное</a>
+            <a href="/map" class="nav-link">Карта</a>
+            <a href="/search" class="nav-link">Поиск</a>
+        </nav>
+    </header>
+
+    <main class="main">
+        <div class="breadcrumbs">
+            <a href="/albums">Альбомы</a> / {{.Album.Name}}
+        </div>
+
+        <div class="page-header">
+            <div class="album-info">
+                <h1>{{.Album.Name}}</h1>
+                {{if .Album.Description}}<p>{{.Album.Description}}</p>{{end}}
+                <p style="margin-top: 0.5rem; font-size: 0.875rem;">{{.Album.MediaCount}} фото</p>
+            </div>
+            <div class="album-actions">
+                <button class="btn btn-secondary" onclick="editAlbum()">Редактировать</button>
+                <button class="btn btn-danger" onclick="deleteAlbum()">Удалить альбом</button>
+            </div>
+        </div>
+
+        {{if .Media}}
+        <div class="grid">
+            {{range .Media}}
+            <div class="media-card" data-id="{{.ID}}" onclick="window.location='/view/{{.ID}}'">
+                <img src="/media/{{.ID}}/thumb/small" alt="{{.Filename}}" loading="lazy">
+                <button class="remove-btn" onclick="removeFromAlbum('{{.ID}}', event)">&times;</button>
+            </div>
+            {{end}}
+        </div>
+        {{else}}
+        <div class="empty-state">
+            <h3>Альбом пуст</h3>
+            <p>Добавьте фотографии через галерею</p>
+        </div>
+        {{end}}
+    </main>
+
+    <script>
+        const albumId = '{{.Album.ID}}';
+
+        function removeFromAlbum(mediaId, event) {
+            event.stopPropagation();
+            if (!confirm('Удалить из альбома?')) return;
+
+            fetch('/api/albums/' + albumId + '/media', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media_ids: [mediaId] })
+            })
+            .then(r => r.json())
+            .then(() => location.reload())
+            .catch(err => alert('Ошибка: ' + err.message));
+        }
+
+        function deleteAlbum() {
+            if (!confirm('Удалить альбом "{{.Album.Name}}"?')) return;
+
+            fetch('/api/albums/' + albumId, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(() => window.location.href = '/albums')
+                .catch(err => alert('Ошибка: ' + err.message));
+        }
+
+        function editAlbum() {
+            const name = prompt('Новое название:', '{{.Album.Name}}');
+            if (!name) return;
+
+            fetch('/api/albums/' + albumId, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name })
+            })
+            .then(r => r.json())
+            .then(() => location.reload())
+            .catch(err => alert('Ошибка: ' + err.message));
+        }
+    </script>
+</body>
+</html>
+{{end}}

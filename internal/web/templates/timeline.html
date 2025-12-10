@@ -1,0 +1,1516 @@
+{{define "timeline.html"}}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Галерея - PhotoCore</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #262626;
+            --bg-hover: #333333;
+            --text-primary: #e5e5e5;
+            --text-secondary: #a3a3a3;
+            --text-muted: #666666;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --border: #333333;
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); }
+
+        /* Header */
+        .header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+        .main-nav { display: flex; gap: 0.5rem; }
+        .nav-link { padding: 0.5rem 1rem; color: var(--text-secondary); border-radius: 6px; transition: all 0.2s; }
+        .nav-link:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+        .nav-link.active { color: var(--text-primary); background-color: var(--accent); }
+        .header-actions { display: flex; gap: 0.75rem; align-items: center; }
+
+        /* Buttons */
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-primary { background-color: var(--accent); color: white; }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-secondary { background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+        .btn-secondary:hover { background-color: var(--bg-hover); }
+        .btn-danger { color: var(--error); }
+
+        /* Bulk Actions Bar */
+        .bulk-actions-bar {
+            display: none;
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 2rem;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .bulk-actions-bar.active { display: flex; }
+        .bulk-info { display: flex; align-items: center; gap: 1rem; }
+        .bulk-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+        /* Container */
+        .container { display: flex; min-height: calc(100vh - 60px); }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            position: sticky;
+            top: 60px;
+            height: calc(100vh - 60px);
+            flex-shrink: 0;
+        }
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sidebar-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .all-photos-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            margin: 0.5rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .all-photos-btn:hover {
+            background: var(--accent);
+            color: white;
+        }
+        .all-photos-btn svg {
+            flex-shrink: 0;
+        }
+        .timeline-list { list-style: none; }
+        .year-header {
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 0.75rem 1rem;
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            position: sticky;
+            top: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .year-header .year-select {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .year-header:hover .year-select,
+        body.select-mode .year-header .year-select { opacity: 1; }
+        .timeline-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 1rem;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .timeline-item:hover { background-color: var(--bg-tertiary); }
+        .timeline-item.active {
+            background-color: var(--bg-tertiary);
+            border-left-color: var(--accent);
+        }
+        .timeline-item-info { display: flex; align-items: center; gap: 0.75rem; flex: 1; }
+        .timeline-label { font-weight: 500; }
+        .timeline-count {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            background-color: var(--bg-tertiary);
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+        }
+        .period-checkbox {
+            width: 18px;
+            height: 18px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
+        .timeline-item:hover .period-checkbox,
+        body.select-mode .period-checkbox { opacity: 1; }
+        .period-checkbox:checked { opacity: 1; }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+        .main-header {
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .main-title { font-size: 1.25rem; }
+        .main-actions { display: flex; gap: 0.5rem; }
+        .main-subtitle { color: var(--text-secondary); font-size: 0.875rem; }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.75rem;
+        }
+        .media-card {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: var(--bg-secondary);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .media-card:hover { transform: scale(1.02); }
+        .media-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.3s;
+        }
+        .media-card img.loading { opacity: 0; }
+        .media-card .overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 0.5rem;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .media-card:hover .overlay { opacity: 1; }
+        .media-card .filename {
+            font-size: 0.7rem;
+            color: white;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .media-card .badge {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            background-color: rgba(0,0,0,0.6);
+            color: white;
+        }
+        .media-card .badge.video { background-color: var(--accent); }
+        .media-card .badge.raw { background-color: var(--success); }
+        .media-card .favorite-badge {
+            position: absolute;
+            top: 0.5rem;
+            left: 0.5rem;
+            color: gold;
+            font-size: 1.1rem;
+            text-shadow: 0 0 3px black;
+            z-index: 5;
+            cursor: pointer;
+        }
+
+        /* Selection Mode */
+        body.select-mode .media-card::before {
+            content: '';
+            position: absolute;
+            top: 0.4rem;
+            left: 0.4rem;
+            width: 22px;
+            height: 22px;
+            border: 2px solid white;
+            border-radius: 50%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+        body.select-mode .media-card.selected::before {
+            background-color: var(--accent);
+            border-color: var(--accent);
+        }
+        body.select-mode .media-card.selected::after {
+            content: '\2713';
+            position: absolute;
+            top: 0.4rem;
+            left: 0.4rem;
+            width: 22px;
+            height: 22px;
+            color: white;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 11;
+        }
+
+        /* Section */
+        .section { margin-bottom: 2rem; }
+        .section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+        .period-header-inline {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: none;
+            letter-spacing: normal;
+            padding: 0.5rem 0;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .period-header-inline:hover { color: var(--accent); }
+        .period-header-inline .period-count {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: normal;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem;
+            color: var(--text-secondary);
+        }
+        .empty-state h3 { margin-bottom: 0.5rem; color: var(--text-primary); }
+
+        /* Lightbox */
+        .lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.98);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+        }
+        .lightbox.active { display: flex; }
+        .lightbox-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+        .lightbox-title {
+            color: white;
+            font-size: 0.9rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 300px;
+        }
+        .lightbox-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+        .lightbox-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .lightbox-btn:hover { background: rgba(255, 255, 255, 0.2); }
+        .lightbox-btn.active { color: gold; }
+        .lightbox-btn.danger:hover { background: rgba(239, 68, 68, 0.3); color: var(--error); }
+        .lightbox-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            line-height: 1;
+            margin-left: 0.5rem;
+        }
+        .lightbox-close:hover { color: var(--accent); }
+        .lightbox-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .lightbox-content img {
+            max-width: calc(100% - 120px);
+            max-height: 100%;
+            object-fit: contain;
+            user-select: none;
+        }
+        .lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            color: white;
+            width: 50px;
+            height: 80px;
+            cursor: pointer;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 5;
+        }
+        .lightbox-nav:hover { background: rgba(255, 255, 255, 0.2); }
+        .lightbox-nav:disabled { opacity: 0.3; cursor: default; }
+        .lightbox-nav.prev { left: 0; border-radius: 0 8px 8px 0; }
+        .lightbox-nav.next { right: 0; border-radius: 8px 0 0 8px; }
+        .lightbox-footer {
+            padding: 0.75rem 1rem;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .lightbox-info { flex: 1; }
+        .lightbox-info h3 { margin-bottom: 0.25rem; font-size: 0.9rem; }
+        .lightbox-info .meta { font-size: 0.8rem; color: var(--text-secondary); }
+        .lightbox-counter {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            min-width: 350px;
+            max-width: 90%;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .modal-header h2 { font-size: 1.1rem; }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .modal-body { margin-bottom: 1rem; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 0.6rem;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1.25rem;
+            display: none;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 1001;
+            font-size: 0.875rem;
+        }
+        .toast.show { display: flex; }
+        .toast.success { border-color: var(--success); }
+        .toast.error { border-color: var(--error); }
+
+        /* Status Bar */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 0.5rem 2rem;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            z-index: 100;
+        }
+        .status-bar.active { display: flex; }
+        .status-bar .status-info { display: flex; gap: 1.5rem; }
+        .status-bar .status-item { display: flex; align-items: center; gap: 0.5rem; }
+        .status-bar .status-label { color: var(--text-muted); }
+        .status-bar .status-value { color: var(--text-primary); font-weight: 500; }
+        .status-bar .progress-bar {
+            width: 200px;
+            height: 4px;
+            background-color: var(--bg-tertiary);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .status-bar .progress-bar .progress {
+            height: 100%;
+            background-color: var(--accent);
+            transition: width 0.3s;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 900px) {
+            .sidebar { width: 240px; }
+            .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+        }
+        @media (max-width: 768px) {
+            .main-nav { display: none; }
+            .sidebar { display: none; }
+            .bulk-actions-bar { flex-direction: column; gap: 0.75rem; }
+        }
+    </style>
+</head>
+<body data-role="{{.Role}}" data-is-admin="{{.IsAdmin}}" data-can-edit="{{.CanEdit}}">
+    <header class="header">
+        <a href="/gallery" class="logo">PhotoCore</a>
+        <nav class="main-nav">
+            <a href="/gallery" class="nav-link active">Галерея</a>
+            <a href="/albums" class="nav-link">Альбомы</a>
+            <a href="/favorites" class="nav-link">Избранное</a>
+            <a href="/map" class="nav-link">Карта</a>
+            <a href="/search" class="nav-link">Поиск</a>
+            {{if .IsAdmin}}<a href="/admin" class="nav-link">Админка</a>{{end}}
+        </nav>
+        <div class="header-actions">
+            <span class="user-info" style="color: var(--text-secondary); font-size: 0.875rem;">{{.Username}}</span>
+            <form action="/logout" method="POST" style="display: inline;">
+                <button type="submit" class="btn btn-secondary">Выйти</button>
+            </form>
+        </div>
+    </header>
+
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-actions-bar" id="bulk-actions-bar">
+        <div class="bulk-info">
+            <span>Выбрано: <strong id="selected-count">0</strong></span>
+            <button class="btn btn-secondary" onclick="selectAll()">Выбрать все</button>
+            <button class="btn btn-secondary" onclick="deselectAll()">Снять выбор</button>
+        </div>
+        <div class="bulk-buttons">
+            <button class="btn btn-secondary" onclick="bulkFavorite(true)">&#9733; В избранное</button>
+            {{if .CanEdit}}<button class="btn btn-secondary" onclick="showAddToAlbumModal()">+ В альбом</button>{{end}}
+            {{if .CanEdit}}<button class="btn btn-secondary" onclick="showAddTagsModal()">&#127991; Теги</button>{{end}}
+            <button class="btn btn-primary" onclick="bulkDownload()">&#8595; Скачать ZIP</button>
+            {{if .IsAdmin}}<button class="btn btn-secondary btn-danger" onclick="bulkDelete()">&#128465; Удалить</button>{{end}}
+        </div>
+    </div>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Периоды</span>
+            </div>
+            <div class="all-photos-btn" onclick="loadAllMedia()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                Все фото
+            </div>
+            <ul class="timeline-list">
+                {{$currentYear := ""}}
+                {{range .Timeline}}
+                {{$year := slice .Date 0 4}}
+                {{if ne $year $currentYear}}
+                <li class="year-header">
+                    <span>{{$year}}</span>
+                    <input type="checkbox" class="year-select" data-year="{{$year}}" onchange="selectYear('{{$year}}', this.checked)" title="Выбрать весь год">
+                </li>
+                {{$currentYear = $year}}
+                {{end}}
+                <li class="timeline-item" data-period="{{.Date}}" data-count="{{.MediaCount}}"
+                    hx-get="/timeline/{{.Date}}"
+                    hx-target="#content"
+                    onclick="setActive(this)">
+                    <div class="timeline-item-info">
+                        <span class="timeline-label">{{.Label}}</span>
+                        <span class="timeline-count">{{.MediaCount}}</span>
+                    </div>
+                    <input type="checkbox" class="period-checkbox" data-period="{{.Date}}" onclick="event.stopPropagation(); selectPeriod('{{.Date}}', this.checked)" title="Выбрать период">
+                </li>
+                {{end}}
+            </ul>
+        </aside>
+
+        <main class="main">
+            <div class="main-header">
+                <div>
+                    <h1 class="main-title" id="content-title">Галерея</h1>
+                    <p class="main-subtitle" id="content-subtitle">Выберите период слева</p>
+                </div>
+                <div class="main-actions">
+                    <button class="btn btn-secondary" id="select-mode-btn" onclick="toggleSelectMode()">Выбрать</button>
+                </div>
+            </div>
+            <div id="content">
+                {{if .Timeline}}
+                <div class="empty-state">
+                    <h3>Выберите период</h3>
+                    <p>Нажмите на месяц в списке слева для просмотра фотографий</p>
+                </div>
+                {{else}}
+                <div class="empty-state">
+                    <h3>Пока ничего нет</h3>
+                    <p>Добавьте медиа-файлы в директорию галереи</p>
+                </div>
+                {{end}}
+            </div>
+        </main>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <div class="lightbox-header">
+            <span class="lightbox-title" id="lightbox-title"></span>
+            <div class="lightbox-actions">
+                <button class="lightbox-btn" id="lb-favorite-btn" onclick="lbToggleFavorite()" title="В избранное">&#9734;</button>
+                {{if .CanEdit}}<button class="lightbox-btn" onclick="lbShowAlbumModal()" title="Добавить в альбом">&#128193;</button>{{end}}
+                {{if .CanEdit}}<button class="lightbox-btn" onclick="lbShowTagsModal()" title="Добавить теги">&#127991;</button>{{end}}
+                <button class="lightbox-btn" onclick="lbDownload()" title="Скачать">&#8595;</button>
+                {{if .IsAdmin}}<button class="lightbox-btn danger" onclick="lbDelete()" title="Удалить">&#128465;</button>{{end}}
+                <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+            </div>
+        </div>
+        <div class="lightbox-content">
+            <button class="lightbox-nav prev" id="lb-prev" onclick="lbNavigate(-1)">&#10094;</button>
+            <img id="lightbox-img" src="" alt="">
+            <button class="lightbox-nav next" id="lb-next" onclick="lbNavigate(1)">&#10095;</button>
+        </div>
+        <div class="lightbox-footer">
+            <div class="lightbox-info" id="lightbox-info"></div>
+            <span class="lightbox-counter" id="lightbox-counter"></span>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Status Bar -->
+    <div class="status-bar" id="status-bar">
+        <div class="status-info">
+            <div class="status-item">
+                <span class="spinner" style="width: 12px; height: 12px;"></span>
+                <span class="status-label">Обработка:</span>
+                <span class="status-value" id="queue-processing">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">В очереди:</span>
+                <span class="status-value" id="queue-pending">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Готово:</span>
+                <span class="status-value" id="queue-completed">0</span>
+            </div>
+        </div>
+        <div class="progress-bar">
+            <div class="progress" id="queue-progress" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="album-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добавить в альбом</h2>
+                <button class="modal-close" onclick="closeModal('album-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Выберите альбом</label>
+                    <select class="form-select" id="album-select"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('album-modal')">Отмена</button>
+                <button class="btn btn-primary" onclick="addToAlbum()">Добавить</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="tags-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добавить теги</h2>
+                <button class="modal-close" onclick="closeModal('tags-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Теги (через запятую)</label>
+                    <input type="text" class="form-input" id="tags-input" placeholder="природа, лето, отпуск">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('tags-modal')">Отмена</button>
+                <button class="btn btn-primary" onclick="addTags()">Добавить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox Album Modal -->
+    <div class="modal" id="lb-album-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добавить в альбом</h2>
+                <button class="modal-close" onclick="closeModal('lb-album-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Выберите альбом</label>
+                    <select class="form-select" id="lb-album-select"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('lb-album-modal')">Отмена</button>
+                <button class="btn btn-primary" onclick="lbAddToAlbum()">Добавить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox Tags Modal -->
+    <div class="modal" id="lb-tags-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добавить теги</h2>
+                <button class="modal-close" onclick="closeModal('lb-tags-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Теги (через запятую)</label>
+                    <input type="text" class="form-input" id="lb-tags-input" placeholder="природа, лето, отпуск">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('lb-tags-modal')">Отмена</button>
+                <button class="btn btn-primary" onclick="lbAddTags()">Добавить</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === State ===
+        let selectMode = false;
+        let selectedMedia = new Set();
+        let currentPeriod = null;
+        let periodMediaCache = {}; // Cache media IDs by period
+        let isAllMode = true; // true = показываем все, false = конкретный период
+
+        // === Timeline Navigation ===
+        function setActive(el) {
+            document.querySelectorAll('.timeline-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            el.classList.add('active');
+            currentPeriod = el.dataset.period;
+            isAllMode = false;
+
+            // Update header
+            const label = el.querySelector('.timeline-label').textContent;
+            const count = el.dataset.count;
+            document.getElementById('content-title').textContent = label;
+            document.getElementById('content-subtitle').textContent = count + ' фото';
+        }
+
+        // Загрузить все фото (режим по умолчанию)
+        function loadAllMedia() {
+            isAllMode = true;
+            currentPeriod = null;
+
+            // Снять active со всех периодов
+            document.querySelectorAll('.timeline-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Обновить заголовок
+            document.getElementById('content-title').textContent = 'Все фото';
+            document.getElementById('content-subtitle').textContent = 'Загрузка...';
+
+            // Загрузить все фото
+            fetch('/timeline/all', {
+                headers: { 'Accept': 'text/html' }
+            })
+                .then(r => r.text())
+                .then(html => {
+                    document.getElementById('content').innerHTML = html;
+                    observeImages();
+
+                    // Посчитать общее количество
+                    const count = document.querySelectorAll('.media-card').length;
+                    document.getElementById('content-subtitle').textContent = count + ' фото';
+                })
+                .catch(err => {
+                    document.getElementById('content').innerHTML = '<div class="empty-state"><h3>Ошибка загрузки</h3></div>';
+                });
+        }
+
+        // Прокрутка к периоду в режиме "все фото"
+        function scrollToPeriod(period) {
+            const section = document.querySelector('.section[data-period="' + period + '"]');
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                // Подсветить в sidebar
+                document.querySelectorAll('.timeline-item').forEach(item => {
+                    item.classList.remove('active');
+                    if (item.dataset.period === period) {
+                        item.classList.add('active');
+                    }
+                });
+            }
+        }
+
+        // === Lazy Loading ===
+        function observeImages() {
+            const images = document.querySelectorAll('.media-card img[data-src]');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.src = img.dataset.src;
+                        img.classList.remove('loading');
+                        observer.unobserve(img);
+                    }
+                });
+            }, { rootMargin: '100px' });
+
+            images.forEach(img => {
+                img.classList.add('loading');
+                observer.observe(img);
+            });
+        }
+
+        document.body.addEventListener('htmx:afterSwap', function(e) {
+            observeImages();
+            // Re-apply selection state to newly loaded media
+            if (selectMode) {
+                document.querySelectorAll('.media-card').forEach(card => {
+                    if (selectedMedia.has(card.dataset.id)) {
+                        card.classList.add('selected');
+                    }
+                });
+            }
+        });
+
+        // === Selection Mode ===
+        function toggleSelectMode() {
+            selectMode = !selectMode;
+            document.body.classList.toggle('select-mode', selectMode);
+            document.getElementById('bulk-actions-bar').classList.toggle('active', selectMode);
+            document.getElementById('select-mode-btn').textContent = selectMode ? 'Отмена' : 'Выбрать';
+
+            if (!selectMode) {
+                deselectAll();
+            }
+        }
+
+        function updateSelectedCount() {
+            document.getElementById('selected-count').textContent = selectedMedia.size;
+        }
+
+        function selectAll() {
+            document.querySelectorAll('.media-card').forEach(card => {
+                const id = card.dataset.id;
+                if (id) {
+                    selectedMedia.add(id);
+                    card.classList.add('selected');
+                }
+            });
+            updateSelectedCount();
+        }
+
+        function deselectAll() {
+            selectedMedia.clear();
+            document.querySelectorAll('.media-card.selected').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.querySelectorAll('.period-checkbox').forEach(cb => {
+                cb.checked = false;
+            });
+            document.querySelectorAll('.year-select').forEach(cb => {
+                cb.checked = false;
+            });
+            updateSelectedCount();
+        }
+
+        // === Period Selection ===
+        function selectPeriod(period, checked) {
+            if (!selectMode) {
+                toggleSelectMode();
+            }
+
+            // Fetch media IDs for this period
+            fetch('/timeline/' + period, {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(r => r.json())
+            .then(media => {
+                if (media) {
+                    media.forEach(m => {
+                        if (checked) {
+                            selectedMedia.add(m.id);
+                        } else {
+                            selectedMedia.delete(m.id);
+                        }
+                    });
+
+                    // Update UI for visible cards
+                    document.querySelectorAll('.media-card').forEach(card => {
+                        if (selectedMedia.has(card.dataset.id)) {
+                            card.classList.add('selected');
+                        } else {
+                            card.classList.remove('selected');
+                        }
+                    });
+
+                    updateSelectedCount();
+                }
+            });
+        }
+
+        function selectYear(year, checked) {
+            if (!selectMode) {
+                toggleSelectMode();
+            }
+
+            // Select all periods of this year
+            document.querySelectorAll('.timeline-item').forEach(item => {
+                if (item.dataset.period && item.dataset.period.startsWith(year)) {
+                    const checkbox = item.querySelector('.period-checkbox');
+                    if (checkbox && checkbox.checked !== checked) {
+                        checkbox.checked = checked;
+                        selectPeriod(item.dataset.period, checked);
+                    }
+                }
+            });
+        }
+
+        // Handle media card clicks
+        document.addEventListener('click', function(e) {
+            if (!selectMode) return;
+
+            const card = e.target.closest('.media-card');
+            if (!card) return;
+
+            // Don't interfere with favorite badge
+            if (e.target.classList.contains('favorite-badge')) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const id = card.dataset.id;
+            if (!id) return;
+
+            if (selectedMedia.has(id)) {
+                selectedMedia.delete(id);
+                card.classList.remove('selected');
+            } else {
+                selectedMedia.add(id);
+                card.classList.add('selected');
+            }
+            updateSelectedCount();
+        });
+
+        // === Bulk Operations ===
+        function getSelectedIds() {
+            return Array.from(selectedMedia);
+        }
+
+        function bulkFavorite(isFavorite) {
+            const ids = getSelectedIds();
+            if (ids.length === 0) return;
+
+            fetch('/api/bulk/favorite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media_ids: ids, is_favorite: isFavorite })
+            })
+            .then(r => r.json())
+            .then(data => {
+                showToast('Добавлено в избранное: ' + data.count, 'success');
+                deselectAll();
+            })
+            .catch(err => showToast('Ошибка: ' + err.message, 'error'));
+        }
+
+        function bulkDownload() {
+            const ids = getSelectedIds();
+            if (ids.length === 0) return;
+
+            showToast('Подготовка архива...', 'success');
+
+            fetch('/api/bulk/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media_ids: ids })
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'photos.zip';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+                showToast('Скачивание начато', 'success');
+            })
+            .catch(err => showToast('Ошибка: ' + err.message, 'error'));
+        }
+
+        function bulkDelete() {
+            const ids = getSelectedIds();
+            if (ids.length === 0) return;
+
+            if (!confirm('Удалить ' + ids.length + ' файлов из базы данных?')) return;
+
+            fetch('/api/bulk/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media_ids: ids })
+            })
+            .then(r => r.json())
+            .then(data => {
+                showToast('Удалено: ' + data.count, 'success');
+                location.reload();
+            })
+            .catch(err => showToast('Ошибка: ' + err.message, 'error'));
+        }
+
+        function showAddToAlbumModal() {
+            const ids = getSelectedIds();
+            if (ids.length === 0) return;
+
+            fetch('/api/albums')
+                .then(r => r.json())
+                .then(albums => {
+                    const select = document.getElementById('album-select');
+                    select.innerHTML = '<option value="">Выберите альбом</option>';
+                    if (albums) {
+                        albums.forEach(album => {
+                            select.innerHTML += '<option value="' + album.id + '">' + album.name + '</option>';
+                        });
+                    }
+                    document.getElementById('album-modal').classList.add('active');
+                });
+        }
+
+        function addToAlbum() {
+            const ids = getSelectedIds();
+            const albumId = document.getElementById('album-select').value;
+            if (!albumId || ids.length === 0) return;
+
+            fetch('/api/bulk/album', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media_ids: ids, album_id: albumId })
+            })
+            .then(r => r.json())
+            .then(data => {
+                showToast('Добавлено в альбом: ' + data.count, 'success');
+                closeModal('album-modal');
+                deselectAll();
+            })
+            .catch(err => showToast('Ошибка: ' + err.message, 'error'));
+        }
+
+        function showAddTagsModal() {
+            const ids = getSelectedIds();
+            if (ids.length === 0) return;
+            document.getElementById('tags-modal').classList.add('active');
+        }
+
+        function addTags() {
+            const ids = getSelectedIds();
+            const tagsInput = document.getElementById('tags-input').value;
+            const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t);
+            if (tags.length === 0 || ids.length === 0) return;
+
+            fetch('/api/bulk/tags', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media_ids: ids, tags: tags })
+            })
+            .then(r => r.json())
+            .then(data => {
+                showToast('Теги добавлены: ' + data.count, 'success');
+                closeModal('tags-modal');
+                document.getElementById('tags-input').value = '';
+                deselectAll();
+            })
+            .catch(err => showToast('Ошибка: ' + err.message, 'error'));
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // === Lightbox ===
+        let lbMediaList = []; // Current media list for navigation
+        let lbCurrentIndex = 0;
+        let lbCurrentMedia = null;
+        let lbTouchStartX = 0;
+        let lbTouchEndX = 0;
+
+        function openLightbox(id, filename, meta, isFavorite) {
+            if (selectMode) return; // Don't open lightbox in select mode
+
+            // Build media list from current grid
+            lbMediaList = [];
+            document.querySelectorAll('.media-card').forEach((card, index) => {
+                const mediaId = card.dataset.id;
+                const mediaFilename = card.dataset.filename || card.querySelector('img')?.alt || '';
+                const mediaFavorite = card.dataset.favorite === 'true';
+                const mediaMeta = card.dataset.meta || '';
+                if (mediaId) {
+                    lbMediaList.push({ id: mediaId, filename: mediaFilename, meta: mediaMeta, isFavorite: mediaFavorite });
+                    if (mediaId === id) {
+                        lbCurrentIndex = lbMediaList.length - 1;
+                    }
+                }
+            });
+
+            lbShowMedia(id, filename, meta, isFavorite);
+
+            const lightbox = document.getElementById('lightbox');
+            lightbox.classList.add('active');
+            document.body.style.overflow = 'hidden';
+
+            lbUpdateNavButtons();
+        }
+
+        function lbShowMedia(id, filename, meta, isFavorite) {
+            lbCurrentMedia = { id, filename, meta, isFavorite };
+
+            const img = document.getElementById('lightbox-img');
+            const title = document.getElementById('lightbox-title');
+            const info = document.getElementById('lightbox-info');
+            const favBtn = document.getElementById('lb-favorite-btn');
+            const counter = document.getElementById('lightbox-counter');
+
+            title.textContent = filename;
+            img.src = '/media/' + id + '/thumb/large';
+            info.innerHTML = '<h3>' + filename + '</h3>' +
+                (meta ? '<div class="meta">' + meta + '</div>' : '');
+
+            // Update favorite button
+            favBtn.innerHTML = isFavorite ? '&#9733;' : '&#9734;';
+            favBtn.classList.toggle('active', isFavorite);
+
+            // Update counter
+            if (lbMediaList.length > 0) {
+                counter.textContent = (lbCurrentIndex + 1) + ' / ' + lbMediaList.length;
+            } else {
+                counter.textContent = '';
+            }
+
+            // Load full image
+            const fullImg = new Image();
+            fullImg.onload = function() { img.src = '/media/' + id; };
+            fullImg.src = '/media/' + id;
+        }
+
+        function lbUpdateNavButtons() {
+            document.getElementById('lb-prev').disabled = lbCurrentIndex <= 0;
+            document.getElementById('lb-next').disabled = lbCurrentIndex >= lbMediaList.length - 1;
+        }
+
+        function lbNavigate(direction) {
+            const newIndex = lbCurrentIndex + direction;
+            if (newIndex < 0 || newIndex >= lbMediaList.length) return;
+
+            lbCurrentIndex = newIndex;
+            const media = lbMediaList[lbCurrentIndex];
+            lbShowMedia(media.id, media.filename, media.meta, media.isFavorite);
+            lbUpdateNavButtons();
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = '';
+            lbCurrentMedia = null;
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            const lightbox = document.getElementById('lightbox');
+            if (!lightbox.classList.contains('active')) return;
+
+            switch (e.key) {
+                case 'Escape':
+                    closeLightbox();
+                    break;
+                case 'ArrowLeft':
+                    lbNavigate(-1);
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight':
+                    lbNavigate(1);
+                    e.preventDefault();
+                    break;
+            }
+        });
+
+        // Click on background to close
+        document.getElementById('lightbox').addEventListener('click', function(e) {
+            if (e.target.classList.contains('lightbox-content')) {
+                closeLightbox();
+            }
+        });
+
+        // Touch/swipe support
+        document.getElementById('lightbox').addEventListener('touchstart', function(e) {
+            lbTouchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        document.getElementById('lightbox').addEventListener('touchend', function(e) {
+            lbTouchEndX = e.changedTouches[0].screenX;
+            const diff = lbTouchStartX - lbTouchEndX;
+            const threshold = 50;
+
+            if (Math.abs(diff) > threshold) {
+                if (diff > 0) {
+                    lbNavigate(1); // Swipe left = next
+                } else {
+                    lbNavigate(-1); // Swipe right = prev
+                }
+            }
+        }, { passive: true });
+
+        // === Lightbox Actions ===
+        function lbToggleFavorite() {
+            if (!lbCurrentMedia) return;
+
+            fetch('/api/media/' + lbCurrentMedia.id + '/favorite', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    lbCurrentMedia.isFavorite = data.is_favorite;
+                    const favBtn = document.getElementById('lb-favorite-btn');
+                    favBtn.innerHTML = data.is_favorite ? '&#9733;' : '&#9734;';
+                    favBtn.classList.toggle('active', data.is_favorite);
+
+                    // Update in media list
+                    if (lbMediaList[lbCurrentIndex]) {
+                        lbMediaList[lbCurrentIndex].isFavorite = data.is_favorite;
+                    }
+
+                    // Update card in grid
+                    const card = document.querySelector('.media-card[data-id="' + lbCurrentMedia.id + '"]');
+                    if (card) {
+                        card.dataset.favorite = data.is_favorite;
+                        const badge = card.querySelector('.favorite-badge');
+                        if (badge) {
+                            badge.textContent = data.is_favorite ? '\u2605' : '\u2606';
+                            badge.style.color = data.is_favorite ? 'gold' : 'white';
+                        }
+                    }
+
+                    showToast(data.is_favorite ? 'Добавлено в избранное' : 'Удалено из избранного', 'success');
+                })
+                .catch(err => showToast('Ошибка: ' + err.message, 'error'));
+        }
+
+        function lbShowAlbumModal() {
+            if (!lbCurrentMedia) return;
+
+            fetch('/api/albums')
+                .then(r => r.json())
+                .then(albums => {
+                    const select = document.getElementById('lb-album-select');
+                    select.innerHTML = '<option value="">Выберите альбом</option>';
+                    if (albums) {
+                        albums.forEach(album => {
+                            select.innerHTML += '<option value="' + album.id + '">' + album.name + '</option>';
+                        });
+                    }
+                    document.getElementById('lb-album-modal').classList.add('active');
+                });
+        }
+
+        function lbAddToAlbum() {
+            if (!lbCurrentMedia) return;
+            const albumId = document.getElementById('lb-album-select').value;
+            if (!albumId) return;
+
+            fetch('/api/bulk/album', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media_ids: [lbCurrentMedia.id], album_id: albumId })
+            })
+            .then(r => r.json())
+            .then(data => {
+                showToast('Добавлено в альбом', 'success');
+                closeModal('lb-album-modal');
+            })
+            .catch(err => showToast('Ошибка: ' + err.message, 'error'));
+        }
+
+        function lbShowTagsModal() {
+            if (!lbCurrentMedia) return;
+            document.getElementById('lb-tags-input').value = '';
+            document.getElementById('lb-tags-modal').classList.add('active');
+        }
+
+        function lbAddTags() {
+            if (!lbCurrentMedia) return;
+            const tagsInput = document.getElementById('lb-tags-input').value;
+            const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t);
+            if (tags.length === 0) return;
+
+            fetch('/api/bulk/tags', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media_ids: [lbCurrentMedia.id], tags: tags })
+            })
+            .then(r => r.json())
+            .then(data => {
+                showToast('Теги добавлены', 'success');
+                closeModal('lb-tags-modal');
+            })
+            .catch(err => showToast('Ошибка: ' + err.message, 'error'));
+        }
+
+        function lbDownload() {
+            if (!lbCurrentMedia) return;
+
+            const a = document.createElement('a');
+            a.href = '/media/' + lbCurrentMedia.id;
+            a.download = lbCurrentMedia.filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            showToast('Скачивание начато', 'success');
+        }
+
+        function lbDelete() {
+            if (!lbCurrentMedia) return;
+
+            if (!confirm('Удалить "' + lbCurrentMedia.filename + '" из базы данных?')) return;
+
+            fetch('/api/bulk/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media_ids: [lbCurrentMedia.id] })
+            })
+            .then(r => r.json())
+            .then(data => {
+                showToast('Удалено', 'success');
+
+                // Remove from list and navigate
+                lbMediaList.splice(lbCurrentIndex, 1);
+
+                if (lbMediaList.length === 0) {
+                    closeLightbox();
+                    location.reload();
+                } else {
+                    if (lbCurrentIndex >= lbMediaList.length) {
+                        lbCurrentIndex = lbMediaList.length - 1;
+                    }
+                    const media = lbMediaList[lbCurrentIndex];
+                    lbShowMedia(media.id, media.filename, media.meta, media.isFavorite);
+                    lbUpdateNavButtons();
+
+                    // Remove card from grid
+                    const card = document.querySelector('.media-card[data-id="' + lbCurrentMedia.id + '"]');
+                    if (card) card.remove();
+                }
+            })
+            .catch(err => showToast('Ошибка: ' + err.message, 'error'));
+        }
+
+        // === Favorite Toggle ===
+        function toggleFavorite(id, event) {
+            event.stopPropagation();
+            fetch('/api/media/' + id + '/favorite', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    const badge = event.target;
+                    badge.textContent = data.is_favorite ? '\u2605' : '\u2606';
+                    badge.style.color = data.is_favorite ? 'gold' : 'white';
+                })
+                .catch(err => showToast('Ошибка: ' + err.message, 'error'));
+        }
+
+        // === Toast ===
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+
+        // === Queue Status ===
+        let queuePollInterval = null;
+
+        function updateQueueStatus() {
+            fetch('/api/queue')
+                .then(r => r.json())
+                .then(data => {
+                    const statusBar = document.getElementById('status-bar');
+                    const processing = data.active_workers || 0;
+                    const pending = data.queued_tasks || 0;
+                    const completed = data.completed_tasks || 0;
+                    const total = data.total_tasks || 0;
+
+                    document.getElementById('queue-processing').textContent = processing;
+                    document.getElementById('queue-pending').textContent = pending;
+                    document.getElementById('queue-completed').textContent = completed;
+
+                    if (total > 0) {
+                        const progress = Math.round((completed / total) * 100);
+                        document.getElementById('queue-progress').style.width = progress + '%';
+                    }
+
+                    if (processing > 0 || pending > 0) {
+                        statusBar.classList.add('active');
+                        if (!queuePollInterval) {
+                            queuePollInterval = setInterval(updateQueueStatus, 2000);
+                        }
+                    } else {
+                        statusBar.classList.remove('active');
+                        if (queuePollInterval) {
+                            clearInterval(queuePollInterval);
+                            queuePollInterval = null;
+                        }
+                        if (total > 0) observeImages();
+                    }
+                })
+                .catch(err => console.log('Queue status error:', err));
+        }
+
+        // === Init ===
+        document.addEventListener('DOMContentLoaded', function() {
+            observeImages();
+            updateQueueStatus();
+
+            // Загрузить все фото по умолчанию
+            loadAllMedia();
+
+            // Periodic queue check
+            setTimeout(function checkQueue() {
+                updateQueueStatus();
+                setTimeout(checkQueue, 5000);
+            }, 5000);
+        });
+    </script>
+</body>
+</html>
+{{end}}

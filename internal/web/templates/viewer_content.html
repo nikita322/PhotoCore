@@ -1,0 +1,9 @@
+{{define "viewer_content.html"}}
+{{if eq .Media.Type "video"}}
+<video controls autoplay style="max-width: 100%; max-height: calc(100vh - 200px);">
+    <source src="/media/{{.Media.ID}}" type="{{.Media.MimeType}}">
+</video>
+{{else}}
+<img src="/media/{{.Media.ID}}" alt="{{.Media.Filename}}" style="max-width: 100%; max-height: calc(100vh - 200px);">
+{{end}}
+{{end}}
