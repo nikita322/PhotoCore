@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -112,7 +113,7 @@ func (s *Store) GetMediaByPath(path string) (*Media, error) {
 	return s.GetMedia(id)
 }
 
-// DeleteMedia удаляет медиа
+// DeleteMedia удаляет медиа и все связи (альбомы, избранное, теги)
 func (s *Store) DeleteMedia(id string) error {
 	// Сначала получаем медиа для удаления из индексов
 	media, err := s.GetMedia(id)
@@ -121,6 +122,26 @@ func (s *Store) DeleteMedia(id string) error {
 	}
 	if media == nil {
 		return nil
+	}
+
+	// Удаляем из всех альбомов
+	if err := s.removeMediaFromAllAlbums(id); err != nil {
+		log.Printf("Error removing media %s from albums: %v", id, err)
+	}
+
+	// Удаляем из глобального избранного
+	s.db.Update(func(txn *badger.Txn) error {
+		return s.removeFromIndex(txn, prefixFavorites, id)
+	})
+
+	// Удаляем из per-user избранного
+	if err := s.removeMediaFromAllUserFavorites(id); err != nil {
+		log.Printf("Error removing media %s from user favorites: %v", id, err)
+	}
+
+	// Удаляем из всех тегов
+	if err := s.removeMediaFromAllTags(media.Tags); err != nil {
+		log.Printf("Error removing media %s from tags: %v", id, err)
 	}
 
 	return s.db.Update(func(txn *badger.Txn) error {
@@ -140,6 +161,85 @@ func (s *Store) DeleteMedia(id string) error {
 
 		// Удаляем основную запись
 		return txn.Delete([]byte(prefixMedia + id))
+	})
+}
+
+// removeMediaFromAllAlbums удаляет медиа из всех альбомов
+func (s *Store) removeMediaFromAllAlbums(mediaID string) error {
+	albums, err := s.ListAlbums()
+	if err != nil {
+		return err
+	}
+
+	for _, album := range albums {
+		// Проверяем есть ли mediaID в альбоме
+		found := false
+		for _, id := range album.MediaIDs {
+			if id == mediaID {
+				found = true
+				break
+			}
+		}
+		if found {
+			s.RemoveMediaFromAlbum(album.ID, []string{mediaID})
+		}
+	}
+	return nil
+}
+
+// removeMediaFromAllUserFavorites удаляет медиа из избранного всех пользователей
+func (s *Store) removeMediaFromAllUserFavorites(mediaID string) error {
+	return s.db.Update(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = []byte(prefixUserFavorites)
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Rewind(); it.Valid(); it.Next() {
+			item := it.Item()
+			key := string(item.Key())
+
+			err := item.Value(func(val []byte) error {
+				var ids []string
+				if err := json.Unmarshal(val, &ids); err != nil {
+					return nil // skip invalid
+				}
+
+				// Фильтруем mediaID
+				newIDs := make([]string, 0, len(ids))
+				for _, id := range ids {
+					if id != mediaID {
+						newIDs = append(newIDs, id)
+					}
+				}
+
+				// Если изменилось - сохраняем
+				if len(newIDs) != len(ids) {
+					data, _ := json.Marshal(newIDs)
+					return txn.Set([]byte(key), data)
+				}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// removeMediaFromAllTags декрементирует счётчики тегов для удалённого медиа
+func (s *Store) removeMediaFromAllTags(tags []string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+	return s.db.Update(func(txn *badger.Txn) error {
+		for _, tagName := range tags {
+			if err := s.decrementTagCount(txn, tagName); err != nil {
+				log.Printf("Error decrementing tag count for %s: %v", tagName, err)
+			}
+		}
+		return nil
 	})
 }
 

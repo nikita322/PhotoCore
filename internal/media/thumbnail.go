@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"image"
-	"image/jpeg"
 	_ "image/gif"
+	"image/jpeg"
 	_ "image/png"
 	"os"
 	"os/exec"
@@ -48,6 +48,15 @@ func (t *ThumbnailGenerator) ThumbnailExists(mediaID string, size string) bool {
 	path := t.GetThumbnailPath(mediaID, size)
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// DeleteThumbnails удаляет все превью для медиа-файла
+func (t *ThumbnailGenerator) DeleteThumbnails(mediaID string) {
+	sizes := []string{"small", "medium", "large"}
+	for _, size := range sizes {
+		path := t.GetThumbnailPath(mediaID, size)
+		os.Remove(path) // игнорируем ошибки - файла может не быть
+	}
 }
 
 // GenerateThumbnail генерирует превью для медиа-файла

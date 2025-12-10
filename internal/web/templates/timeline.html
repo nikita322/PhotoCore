@@ -1090,7 +1090,18 @@
             .then(r => r.json())
             .then(data => {
                 showToast('Удалено: ' + data.count, 'success');
-                location.reload();
+
+                // Обновить счётчики и удалить карточки
+                ids.forEach(id => {
+                    const card = document.querySelector('.media-card[data-id="' + id + '"]');
+                    if (card) {
+                        updatePeriodCounterForCard(card);
+                        card.remove();
+                    }
+                });
+
+                deselectAll();
+                toggleSelectMode();
             })
             .catch(err => showToast('Ошибка: ' + err.message, 'error'));
         }
@@ -1400,15 +1411,105 @@
             showToast('Скачивание начато', 'success');
         }
 
+        // Обновление счётчиков периодов после удаления
+        function updatePeriodCounterForCard(card) {
+            if (!card) return;
+
+            let period = null;
+            const section = card.closest('.section');
+
+            if (isAllMode) {
+                // Режим "все фото" - секция имеет data-period
+                const sectionWithPeriod = card.closest('.section[data-period]');
+                if (sectionWithPeriod) {
+                    period = sectionWithPeriod.dataset.period;
+
+                    // Обновить счётчик в заголовке секции (.period-count)
+                    const periodCount = sectionWithPeriod.querySelector('.period-count');
+                    if (periodCount) {
+                        const match = periodCount.textContent.match(/\d+/);
+                        if (match) {
+                            let count = parseInt(match[0]) || 0;
+                            count = Math.max(0, count - 1);
+                            periodCount.textContent = '(' + count + ')';
+
+                            // Если секция пуста - удалить её
+                            if (count === 0) {
+                                sectionWithPeriod.remove();
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Режим конкретного периода - используем currentPeriod
+                period = currentPeriod;
+
+                // Обновить счётчик в section-title (формат "Медиа (N)")
+                if (section) {
+                    const sectionTitle = section.querySelector('.section-title');
+                    if (sectionTitle) {
+                        const match = sectionTitle.textContent.match(/\((\d+)\)/);
+                        if (match) {
+                            let count = parseInt(match[1]) || 0;
+                            count = Math.max(0, count - 1);
+                            sectionTitle.textContent = sectionTitle.textContent.replace(/\(\d+\)/, '(' + count + ')');
+
+                            // Обновить подзаголовок страницы
+                            const subtitle = document.getElementById('content-subtitle');
+                            if (subtitle) {
+                                subtitle.textContent = count + ' фото';
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!period) return;
+
+            // Обновить счётчик в левом меню (sidebar)
+            const menuItem = document.querySelector('.timeline-item[data-period="' + period + '"]');
+            if (menuItem) {
+                let count = parseInt(menuItem.dataset.count) || 0;
+                count = Math.max(0, count - 1);
+                menuItem.dataset.count = count;
+
+                const countSpan = menuItem.querySelector('.timeline-count');
+                if (countSpan) {
+                    countSpan.textContent = count;
+                }
+
+                // Если период пуст - удалить из меню
+                if (count === 0) {
+                    menuItem.remove();
+
+                    // Проверить, остались ли периоды в этом году
+                    const year = period.substring(0, 4);
+                    const remainingInYear = document.querySelectorAll('.timeline-item[data-period^="' + year + '"]');
+                    if (remainingInYear.length === 0) {
+                        // Удалить заголовок года
+                        const yearHeaders = document.querySelectorAll('.year-header');
+                        yearHeaders.forEach(header => {
+                            if (header.querySelector('span')?.textContent === year) {
+                                header.remove();
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
         function lbDelete() {
             if (!lbCurrentMedia) return;
 
             if (!confirm('Удалить "' + lbCurrentMedia.filename + '" из базы данных?')) return;
 
+            // Сохранить ID до удаления
+            const deletedId = lbCurrentMedia.id;
+
             fetch('/api/bulk/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ media_ids: [lbCurrentMedia.id] })
+                body: JSON.stringify({ media_ids: [deletedId] })
             })
             .then(r => r.json())
             .then(data => {
@@ -1417,9 +1518,16 @@
                 // Remove from list and navigate
                 lbMediaList.splice(lbCurrentIndex, 1);
 
+                // Найти карточку и обновить счётчики
+                const card = document.querySelector('.media-card[data-id="' + deletedId + '"]');
+                updatePeriodCounterForCard(card);
+
+                // Удалить карточку из грида
+                if (card) card.remove();
+
                 if (lbMediaList.length === 0) {
                     closeLightbox();
-                    location.reload();
+                    // Не перезагружаем - интерфейс уже обновлён
                 } else {
                     if (lbCurrentIndex >= lbMediaList.length) {
                         lbCurrentIndex = lbMediaList.length - 1;
@@ -1427,10 +1535,6 @@
                     const media = lbMediaList[lbCurrentIndex];
                     lbShowMedia(media.id, media.filename, media.meta, media.isFavorite);
                     lbUpdateNavButtons();
-
-                    // Remove card from grid
-                    const card = document.querySelector('.media-card[data-id="' + lbCurrentMedia.id + '"]');
-                    if (card) card.remove();
                 }
             })
             .catch(err => showToast('Ошибка: ' + err.message, 'error'));

@@ -1,12 +1,12 @@
 server:
   host: "0.0.0.0"
-  port: 8080
+  port: 6550
 
 storage:
   media_paths:
-    - "./testmedia"  # Путь к медиа-файлам (измените на свой)
-  cache_path: "./cache"
-  db_path: "./data/photocore.db"
+    - "/media"  # Docker: монтируется из хоста
+  cache_path: "/thumbs"  # Docker: монтируется из хоста
+  db_path: "/data/photocore.db"  # Docker: монтируется из хоста
 
 thumbnails:
   small: 300

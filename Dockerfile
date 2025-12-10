@@ -1,42 +1,37 @@
-# Build stage
-FROM golang:1.22-alpine AS builder
+FROM alpine:latest
 
-RUN apk add --no-cache git
-
-WORKDIR /build
-
-# Clone from GitHub (замени на свой репозиторий)
-ARG GITHUB_REPO=github.com/nikita322/PhotoCore
-ARG GITHUB_BRANCH=main
-
-RUN git clone --depth 1 --branch ${GITHUB_BRANCH} https://${GITHUB_REPO}.git .
-
-# Download dependencies
-RUN go mod download
-
-# Build binary
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o photocore ./cmd/photocore
-
-# Runtime stage
-FROM alpine:3.19
-
+# Install Go and runtime dependencies
 RUN apk add --no-cache \
+    go \
     ffmpeg \
-    ca-certificates \
     tzdata
 
-WORKDIR /app
-
-# Copy binary from builder
-COPY --from=builder /build/photocore .
-
 # Create directories
-RUN mkdir -p /data /thumbs /media
+RUN mkdir -p /app /data /thumbs /media /go-cache
 
-# Default config (can be overridden by volume mount)
-COPY --from=builder /build/config.yaml /app/config.yaml
+# Set Go cache directory (for read-only source mount)
+ENV GOCACHE=/go-cache
+ENV GOMODCACHE=/go-cache/mod
 
 # Expose port
 EXPOSE 6550
 
-ENTRYPOINT ["./photocore"]
+# Build and run at startup
+# Source code mounted to /src, downloads deps, builds to /app/photocore
+ENTRYPOINT ["sh", "-c", "cd /src && go mod download && go build -ldflags='-w -s' -o /app/photocore ./cmd/photocore && /app/photocore"]
+
+# Build (один раз, из папки src/):
+#   podman build -t photocore .
+#
+# Run:
+#   podman run -d --name photocore \
+#     -p 6550:6550 \
+#     -v /root/containers/photocore/src:/src:ro \
+#     -v /root/containers/photocore/gallery:/media:ro \
+#     -v /root/containers/photocore/data:/data \
+#     -v /root/containers/photocore/thumbs:/thumbs \
+#     photocore
+#
+# Update code:
+#   1. Copy new sources to /root/containers/photocore/src/
+#   2. podman restart photocore

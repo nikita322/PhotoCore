@@ -1037,9 +1037,10 @@ func (h *Handlers) BulkDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем информацию о медиа для удаления файлов превью
+	// Удаляем из кэша и thumbnail файлы
 	for _, id := range req.MediaIDs {
 		h.cache.DeleteMedia(id)
+		h.thumbGen.DeleteThumbnails(id)
 	}
 
 	if err := h.store.BulkDelete(req.MediaIDs); err != nil {
@@ -1340,13 +1341,38 @@ func (h *Handlers) jsonError(w http.ResponseWriter, message string, code int) {
 }
 
 const placeholderSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+<defs>
+<linearGradient id="shimmer" x1="0%" y1="0%" x2="100%" y2="0%">
+<stop offset="0%" style="stop-color:#2a2a2a"/>
+<stop offset="50%" style="stop-color:#3a3a3a"/>
+<stop offset="100%" style="stop-color:#2a2a2a"/>
+<animate attributeName="x1" values="-100%;100%" dur="1.5s" repeatCount="indefinite"/>
+<animate attributeName="x2" values="0%;200%" dur="1.5s" repeatCount="indefinite"/>
+</linearGradient>
+</defs>
 <rect fill="#1a1a1a" width="300" height="300"/>
-<g fill="#333" transform="translate(100,100)">
-<rect x="20" y="20" width="60" height="60" rx="5">
-<animate attributeName="opacity" values="1;0.5;1" dur="1s" repeatCount="indefinite"/>
-</rect>
+<rect fill="url(#shimmer)" width="300" height="300" rx="4"/>
+<g transform="translate(150,130)">
+<circle cx="0" cy="0" r="4" fill="#666">
+<animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" begin="0s"/>
+</circle>
+<circle cx="16" cy="0" r="4" fill="#666">
+<animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" begin="0.15s"/>
+</circle>
+<circle cx="32" cy="0" r="4" fill="#666">
+<animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" begin="0.3s"/>
+</circle>
+<circle cx="-16" cy="0" r="4" fill="#666">
+<animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" begin="0.45s"/>
+</circle>
+<circle cx="-32" cy="0" r="4" fill="#666">
+<animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" begin="0.6s"/>
+</circle>
 </g>
-<text x="150" y="200" fill="#666" text-anchor="middle" font-family="system-ui" font-size="12">Загрузка...</text>
+<g transform="translate(150,170)" fill="#555">
+<path d="M-20,-15 L20,-15 L20,10 L0,20 L-20,10 Z" opacity="0.3"/>
+<circle cx="-8" cy="-5" r="4" opacity="0.4"/>
+</g>
 </svg>`
 
 func generateID() string {
