@@ -22,22 +22,22 @@ import (
 	"github.com/photocore/photocore/internal/worker"
 )
 
-//go:embed templates/*.html
+//go:embed templates/layouts/*.html templates/pages/*.html templates/partials/*.html
 var templatesFS embed.FS
 
 // Server представляет веб-сервер приложения
 type Server struct {
-	cfg          *config.Config
-	store        *storage.Store
-	scanner      *scanner.Scanner
-	thumbGen     *media.ThumbnailGenerator
-	auth         *auth.Auth
-	templates    *template.Template
-	router       *chi.Mux
-	staticFS     fs.FS
-	cache        *cache.MediaCache
-	workerPool   *worker.Pool
-	thumbService *worker.ThumbnailService
+	cfg           *config.Config
+	store         *storage.Store
+	scanner       *scanner.Scanner
+	thumbGen      *media.ThumbnailGenerator
+	auth          *auth.Auth
+	pageTemplates map[string]*template.Template // Шаблоны страниц с наследованием от base
+	router        *chi.Mux
+	staticFS      fs.FS
+	cache         *cache.MediaCache
+	workerPool    *worker.Pool
+	thumbService  *worker.ThumbnailService
 }
 
 // NewServer создает новый веб-сервер
@@ -57,23 +57,72 @@ func NewServer(
 		"sub": func(a, b int) int { return a - b },
 	}
 
-	// Парсим шаблоны
-	tmpl, err := template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/*.html")
+	// Парсим базовый шаблон (layout)
+	baseTemplate, err := template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/layouts/*.html")
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse templates: %w", err)
+		return nil, fmt.Errorf("failed to parse base templates: %w", err)
+	}
+
+	// Страницы (полные страницы с наследованием от base)
+	pages := []string{
+		"gallery.html",
+		"albums.html",
+		"album.html",
+		"favorites.html",
+		"search.html",
+		"map.html",
+		"admin.html",
+		"login.html",
+		"viewer.html",
+		"trash.html",
+	}
+
+	// Partials (фрагменты для HTMX)
+	partials := []string{
+		"gallery_content.html",
+		"gallery_all.html",
+		"search_results.html",
+		"viewer_content.html",
+	}
+
+	// Для каждой страницы создаём клон base и парсим страницу
+	pageTemplates := make(map[string]*template.Template)
+	for _, page := range pages {
+		tmpl, err := baseTemplate.Clone()
+		if err != nil {
+			return nil, fmt.Errorf("failed to clone base template for %s: %w", page, err)
+		}
+		tmpl, err = tmpl.ParseFS(templatesFS, "templates/pages/"+page)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse template %s: %w", page, err)
+		}
+		pageTemplates[page] = tmpl
+	}
+
+	// Для partials тоже создаём клон (они могут использовать base_styles и т.д.)
+	for _, partial := range partials {
+		tmpl, err := baseTemplate.Clone()
+		if err != nil {
+			return nil, fmt.Errorf("failed to clone base template for %s: %w", partial, err)
+		}
+		tmpl, err = tmpl.ParseFS(templatesFS, "templates/partials/"+partial)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse template %s: %w", partial, err)
+		}
+		pageTemplates[partial] = tmpl
 	}
 
 	s := &Server{
-		cfg:          cfg,
-		store:        store,
-		scanner:      scanner,
-		thumbGen:     thumbGen,
-		auth:         authService,
-		templates:    tmpl,
-		staticFS:     staticFS,
-		cache:        mediaCache,
-		workerPool:   workerPool,
-		thumbService: thumbService,
+		cfg:           cfg,
+		store:         store,
+		scanner:       scanner,
+		thumbGen:      thumbGen,
+		auth:          authService,
+		pageTemplates: pageTemplates,
+		staticFS:      staticFS,
+		cache:         mediaCache,
+		workerPool:    workerPool,
+		thumbService:  thumbService,
 	}
 
 	s.setupRoutes()
@@ -90,7 +139,7 @@ func (s *Server) setupRoutes() {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	// Создаем handlers
-	h := handlers.NewHandlers(s.cfg, s.store, s.scanner, s.thumbGen, s.auth, s.templates, s.cache, s.workerPool, s.thumbService)
+	h := handlers.NewHandlers(s.cfg, s.store, s.scanner, s.thumbGen, s.auth, s.pageTemplates, s.cache, s.workerPool, s.thumbService)
 
 	// Статические файлы
 	staticHandler := http.FileServer(http.FS(s.staticFS))
@@ -106,7 +155,7 @@ func (s *Server) setupRoutes() {
 
 		// Основные страницы
 		r.Get("/", h.Index)
-		r.Get("/gallery", h.Timeline)    // Главная галерея - timeline view
+		r.Get("/gallery", h.Timeline) // Главная галерея - timeline view
 		r.Get("/view/{id}", h.ViewMedia)
 
 		// Новые страницы
@@ -163,8 +212,21 @@ func (s *Server) setupRoutes() {
 		r.Post("/api/bulk/favorite", h.BulkFavorite)
 		r.Post("/api/bulk/tags", h.BulkAddTags)
 		r.Post("/api/bulk/album", h.BulkAddToAlbum)
-		r.Post("/api/bulk/delete", h.BulkDelete)
+		r.Post("/api/bulk/delete", h.BulkMoveToTrash) // Теперь перемещает в корзину
 		r.Post("/api/bulk/download", h.BulkDownload)
+		r.Post("/api/bulk/restore", h.BulkRestore)
+
+		// Корзина
+		r.Get("/trash", h.TrashPage)
+		r.Get("/api/trash/stats", h.TrashStats)
+		r.Post("/api/media/{id}/trash", h.MoveToTrash)
+		r.Post("/api/trash/{id}/restore", h.RestoreFromTrash)
+		r.Delete("/api/trash/{id}", h.PermanentDelete)
+		r.Delete("/api/trash", h.EmptyTrash)
+
+		// API медиа (для модального окна сравнения)
+		r.Get("/api/media/{id}", h.GetMediaInfo)
+		r.Post("/api/duplicates/replace", h.ReplaceDuplicate)
 
 		// Admin страница и API (проверка прав в handlers)
 		r.Get("/admin", h.AdminPage)

@@ -26,14 +26,15 @@ type Scanner struct {
 
 // ScanProgress содержит информацию о прогрессе сканирования
 type ScanProgress struct {
-	Running     bool      `json:"running"`
-	StartedAt   time.Time `json:"started_at"`
-	TotalFiles  int       `json:"total_files"`
-	Scanned     int       `json:"scanned"`
-	NewFiles    int       `json:"new_files"`
-	UpdatedFiles int      `json:"updated_files"`
-	Errors      int       `json:"errors"`
-	CurrentPath string    `json:"current_path"`
+	Running           bool      `json:"running"`
+	StartedAt         time.Time `json:"started_at"`
+	TotalFiles        int       `json:"total_files"`
+	Scanned           int       `json:"scanned"`
+	NewFiles          int       `json:"new_files"`
+	UpdatedFiles      int       `json:"updated_files"`
+	SkippedDuplicates int       `json:"skipped_duplicates"`
+	Errors            int       `json:"errors"`
+	CurrentPath       string    `json:"current_path"`
 }
 
 // NewScanner создает новый сканер
@@ -159,6 +160,11 @@ func (s *Scanner) scan() {
 				return nil
 			}
 
+			// Если файл в корзине (soft-deleted), пропускаем
+			if existing != nil && existing.DeletedAt != nil {
+				return nil
+			}
+
 			// Если файл существует и не изменился, пропускаем
 			if existing != nil && existing.ModifiedAt.Equal(info.ModTime()) && existing.Size == info.Size() {
 				return nil
@@ -180,10 +186,70 @@ func (s *Scanner) scan() {
 				CreatedAt:  time.Now(),
 			}
 
-			// Извлекаем метаданные для изображений
-			if mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw {
-				if err := extractMetadata(path, media); err != nil {
+			// Сохраняем важные поля из существующей записи
+			if existing != nil {
+				media.CreatedAt = existing.CreatedAt
+				media.IsFavorite = existing.IsFavorite
+				media.Tags = existing.Tags
+				media.ThumbSmall = existing.ThumbSmall
+				media.ThumbLarge = existing.ThumbLarge
+				media.Checksum = existing.Checksum
+				media.ImageHash = existing.ImageHash
+				// Не перезаписываем метаданные, если они уже есть
+				if existing.TakenAt.Year() > 1900 {
+					media.TakenAt = existing.TakenAt
+					media.Metadata = existing.Metadata
+				}
+			}
+
+			// Извлекаем метаданные для изображений (только для новых файлов)
+			if existing == nil && (mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw) {
+				if err := ExtractMetadata(path, media); err != nil {
 					log.Printf("Error extracting metadata from %s: %v", path, err)
+				}
+			}
+
+			// Вычисляем хеши для новых файлов или если они отсутствуют
+			if media.Checksum == "" {
+				isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
+				hashes, err := CalculateHashes(path, isImage)
+				if err != nil {
+					log.Printf("Error calculating hashes for %s: %v", path, err)
+				} else {
+					media.Checksum = hashes.Checksum
+					media.ImageHash = hashes.ImageHash
+				}
+			}
+
+			// Проверяем на дубликаты (только для новых файлов)
+			// Гибридный подход: 1) размер ±10%, 2) SHA256, 3) pHash
+			if existing == nil {
+				isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
+				dupResult, err := s.store.CheckDuplicate(media.Size, media.Checksum, media.ImageHash, isImage, 10)
+				if err != nil {
+					log.Printf("Error checking duplicates for %s: %v", path, err)
+				} else if dupResult.IsDuplicate {
+					// Это дубликат - сохраняем с пометкой и перемещаем в корзину
+					media.DuplicateOf = dupResult.ExistingID
+
+					if err := s.store.SaveMedia(media); err != nil {
+						log.Printf("Error saving duplicate %s: %v", path, err)
+						return nil
+					}
+
+					// Перемещаем в корзину
+					s.store.SoftDeleteMedia(media.ID)
+
+					if dupResult.Type == "exact" {
+						log.Printf("Duplicate moved to trash: %s (exact copy of %s)", path, dupResult.ExistingID)
+					} else {
+						log.Printf("Duplicate moved to trash: %s (similar to %s, distance=%d)", path, dupResult.ExistingID, dupResult.Distance)
+					}
+
+					s.mu.Lock()
+					s.progress.SkippedDuplicates++
+					s.mu.Unlock()
+					return nil
 				}
 			}
 
@@ -212,8 +278,8 @@ func (s *Scanner) scan() {
 		}
 	}
 
-	log.Printf("Scan completed: %d files, %d new, %d updated, %d errors",
-		s.progress.TotalFiles, s.progress.NewFiles, s.progress.UpdatedFiles, s.progress.Errors)
+	log.Printf("Scan completed: %d files, %d new, %d updated, %d duplicates skipped, %d errors",
+		s.progress.TotalFiles, s.progress.NewFiles, s.progress.UpdatedFiles, s.progress.SkippedDuplicates, s.progress.Errors)
 }
 
 func getMimeType(ext string) string {

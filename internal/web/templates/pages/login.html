@@ -1,0 +1,111 @@
+{{define "title"}}Вход - PhotoCore{{end}}
+
+{{define "styles"}}
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.login-container {
+    width: 100%;
+    max-width: 400px;
+    padding: var(--spacing-xl);
+}
+.login-card {
+    background-color: var(--md-surface-container);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    box-shadow: var(--elevation-2);
+}
+.login-logo {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+.login-logo img {
+    width: 64px;
+    height: 64px;
+}
+.login-logo h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.login-form .form-group {
+    margin-bottom: var(--spacing-lg);
+}
+.login-form .form-label {
+    display: block;
+    margin-bottom: var(--spacing-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+.login-form .form-input {
+    padding: 0.75rem var(--spacing-md);
+    font-size: 1rem;
+}
+.login-form .form-input::placeholder {
+    color: var(--text-muted);
+}
+.login-btn {
+    width: 100%;
+    padding: 0.75rem var(--spacing-md);
+    background-color: var(--md-primary);
+    color: var(--md-on-primary);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.login-btn:hover {
+    background-color: var(--accent-hover);
+    box-shadow: var(--elevation-1);
+}
+.error {
+    background-color: rgba(255, 180, 171, 0.15);
+    border: 1px solid var(--md-error);
+    color: var(--md-error);
+    padding: 0.75rem var(--spacing-md);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--spacing-lg);
+    font-size: 0.875rem;
+}
+{{end}}
+
+{{define "content"}}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-logo">
+            <img src="/static/images/logo.svg" alt="PhotoCore">
+            <h1>PhotoCore</h1>
+        </div>
+
+        {{if .Error}}
+        <div class="error">{{.Error}}</div>
+        {{end}}
+
+        <form method="POST" action="/login" class="login-form">
+            <div class="form-group">
+                <label class="form-label" for="username">Имя пользователя</label>
+                <input type="text" id="username" name="username" class="form-input"
+                       placeholder="Введите имя пользователя" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Пароль</label>
+                <input type="password" id="password" name="password" class="form-input"
+                       placeholder="Введите пароль" required>
+            </div>
+
+            <button type="submit" class="login-btn">Войти</button>
+        </form>
+    </div>
+</div>
+{{end}}

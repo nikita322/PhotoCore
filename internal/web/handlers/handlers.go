@@ -28,15 +28,15 @@ import (
 
 // Handlers содержит все HTTP-обработчики
 type Handlers struct {
-	cfg          *config.Config
-	store        *storage.Store
-	scanner      *scanner.Scanner
-	thumbGen     *media.ThumbnailGenerator
-	auth         *auth.Auth
-	templates    *template.Template
-	cache        *cache.MediaCache
-	workerPool   *worker.Pool
-	thumbService *worker.ThumbnailService
+	cfg           *config.Config
+	store         *storage.Store
+	scanner       *scanner.Scanner
+	thumbGen      *media.ThumbnailGenerator
+	auth          *auth.Auth
+	pageTemplates map[string]*template.Template // Шаблоны с наследованием от base
+	cache         *cache.MediaCache
+	workerPool    *worker.Pool
+	thumbService  *worker.ThumbnailService
 }
 
 // NewHandlers создает новый экземпляр обработчиков
@@ -46,22 +46,43 @@ func NewHandlers(
 	scanner *scanner.Scanner,
 	thumbGen *media.ThumbnailGenerator,
 	auth *auth.Auth,
-	templates *template.Template,
+	pageTemplates map[string]*template.Template,
 	mediaCache *cache.MediaCache,
 	workerPool *worker.Pool,
 	thumbService *worker.ThumbnailService,
 ) *Handlers {
 	return &Handlers{
-		cfg:          cfg,
-		store:        store,
-		scanner:      scanner,
-		thumbGen:     thumbGen,
-		auth:         auth,
-		templates:    templates,
-		cache:        mediaCache,
-		workerPool:   workerPool,
-		thumbService: thumbService,
+		cfg:           cfg,
+		store:         store,
+		scanner:       scanner,
+		thumbGen:      thumbGen,
+		auth:          auth,
+		pageTemplates: pageTemplates,
+		cache:         mediaCache,
+		workerPool:    workerPool,
+		thumbService:  thumbService,
 	}
+}
+
+// baseData возвращает общие данные для шаблонов (сессия, права)
+func (h *Handlers) baseData(r *http.Request) map[string]interface{} {
+	data := make(map[string]interface{})
+	if session := auth.GetSession(r); session != nil {
+		data["Username"] = session.Username
+		data["Role"] = session.Role
+		data["IsAdmin"] = session.Role == storage.RoleAdmin
+		data["CanEdit"] = session.Role == storage.RoleAdmin || session.Role == storage.RoleEditor
+
+		// Загружаем избранные один раз для всей страницы
+		if favIDs, err := h.store.GetUserFavorites(session.UserID); err == nil {
+			favSet := make(map[string]bool, len(favIDs))
+			for _, id := range favIDs {
+				favSet[id] = true
+			}
+			data["FavSet"] = favSet
+		}
+	}
+	return data
 }
 
 // === Страницы ===
@@ -73,7 +94,9 @@ func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
 
 // LoginPage отображает страницу входа
 func (h *Handlers) LoginPage(w http.ResponseWriter, r *http.Request) {
-	h.render(w, "login.html", nil)
+	h.render(w, "login.html", map[string]interface{}{
+		"HideHeader": true,
+	})
 }
 
 // Login обрабатывает вход пользователя
@@ -84,7 +107,8 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	session, err := h.auth.Login(username, password)
 	if err != nil {
 		h.render(w, "login.html", map[string]interface{}{
-			"Error": "Неверное имя пользователя или пароль",
+			"HideHeader": true,
+			"Error":      "Неверное имя пользователя или пароль",
 		})
 		return
 	}
@@ -137,10 +161,9 @@ func (h *Handlers) ViewMedia(w http.ResponseWriter, r *http.Request) {
 
 	isHTMX := r.Header.Get("HX-Request") == "true"
 
-	data := map[string]interface{}{
-		"Media":  m,
-		"IsHTMX": isHTMX,
-	}
+	data := h.baseData(r)
+	data["Media"] = m
+	data["IsHTMX"] = isHTMX
 
 	if isHTMX {
 		h.render(w, "viewer_content.html", data)
@@ -360,7 +383,7 @@ func (h *Handlers) Search(w http.ResponseWriter, r *http.Request) {
 	// Проверяем, запрашивается ли HTML или JSON
 	isHTMX := r.Header.Get("HX-Request") == "true"
 	if isHTMX {
-		h.render(w, "search_results.html", map[string]interface{}{
+		h.renderPartial(w, "search_results.html", map[string]interface{}{
 			"Media":      result.Media,
 			"TotalCount": result.TotalCount,
 			"HasMore":    result.HasMore,
@@ -391,10 +414,10 @@ func (h *Handlers) SearchPage(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(cameraList)
 
-	h.render(w, "search.html", map[string]interface{}{
-		"Tags":    tags,
-		"Cameras": cameraList,
-	})
+	data := h.baseData(r)
+	data["Tags"] = tags
+	data["Cameras"] = cameraList
+	h.render(w, "search.html", data)
 }
 
 // === Альбомы ===
@@ -409,9 +432,9 @@ func (h *Handlers) ListAlbums(w http.ResponseWriter, r *http.Request) {
 
 	// Для браузерных запросов рендерим HTML
 	if h.wantsHTML(r) {
-		h.render(w, "albums.html", map[string]interface{}{
-			"Albums": albums,
-		})
+		data := h.baseData(r)
+		data["Albums"] = albums
+		h.render(w, "albums.html", data)
 		return
 	}
 
@@ -439,10 +462,10 @@ func (h *Handlers) GetAlbum(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.wantsHTML(r) {
-		h.render(w, "album.html", map[string]interface{}{
-			"Album": album,
-			"Media": media,
-		})
+		data := h.baseData(r)
+		data["Album"] = album
+		data["Media"] = media
+		h.render(w, "album.html", data)
 		return
 	}
 
@@ -667,9 +690,9 @@ func (h *Handlers) ListFavorites(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if h.wantsHTML(r) {
-		h.render(w, "favorites.html", map[string]interface{}{
-			"Media": media,
-		})
+		data := h.baseData(r)
+		data["Media"] = media
+		h.render(w, "favorites.html", data)
 		return
 	}
 
@@ -762,7 +785,7 @@ func (h *Handlers) MediaByTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.wantsHTML(r) {
-		h.render(w, "gallery_content.html", map[string]interface{}{
+		h.renderPartial(w, "gallery_content.html", map[string]interface{}{
 			"Media": media,
 			"Tag":   tag,
 		})
@@ -783,17 +806,9 @@ func (h *Handlers) Timeline(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.wantsHTML(r) {
-		session := auth.GetSession(r)
-		data := map[string]interface{}{
-			"Timeline": timeline,
-		}
-		if session != nil {
-			data["Username"] = session.Username
-			data["Role"] = session.Role
-			data["IsAdmin"] = session.Role == storage.RoleAdmin
-			data["CanEdit"] = session.Role == storage.RoleAdmin || session.Role == storage.RoleEditor
-		}
-		h.render(w, "timeline.html", data)
+		data := h.baseData(r)
+		data["Timeline"] = timeline
+		h.render(w, "gallery.html", data)
 		return
 	}
 
@@ -816,7 +831,7 @@ func (h *Handlers) TimelineMedia(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if h.wantsHTML(r) {
-		h.render(w, "gallery_content.html", map[string]interface{}{
+		h.renderPartial(w, "gallery_content.html", map[string]interface{}{
 			"Media":  media,
 			"Period": period,
 		})
@@ -896,7 +911,7 @@ func (h *Handlers) TimelineAllMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.wantsHTML(r) {
-		h.render(w, "timeline_all.html", map[string]interface{}{
+		h.renderPartial(w, "gallery_all.html", map[string]interface{}{
 			"Groups": groups,
 			"Total":  len(allMedia),
 		})
@@ -910,7 +925,7 @@ func (h *Handlers) TimelineAllMedia(w http.ResponseWriter, r *http.Request) {
 
 // MapPage отображает страницу карты
 func (h *Handlers) MapPage(w http.ResponseWriter, r *http.Request) {
-	h.render(w, "map.html", nil)
+	h.render(w, "map.html", h.baseData(r))
 }
 
 // GeoPoints возвращает точки с GPS координатами
@@ -1113,9 +1128,9 @@ func (h *Handlers) AdminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.render(w, "admin.html", map[string]interface{}{
-		"Users": users,
-	})
+	data := h.baseData(r)
+	data["Users"] = users
+	h.render(w, "admin.html", data)
 }
 
 // ListUsers возвращает список пользователей (API)
@@ -1308,6 +1323,365 @@ func (h *Handlers) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	h.jsonResponse(w, map[string]string{"status": "deleted"})
 }
 
+// === Корзина ===
+
+// TrashPage отображает страницу корзины
+func (h *Handlers) TrashPage(w http.ResponseWriter, r *http.Request) {
+	// Проверка прав: только admin и editor могут видеть корзину
+	role := auth.GetUserRole(r)
+	if !auth.CanEdit(role) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	trashMedia, err := h.store.ListTrashMedia()
+	if err != nil {
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// Сортируем по дате удаления (новые первые)
+	sort.Slice(trashMedia, func(i, j int) bool {
+		if trashMedia[i].DeletedAt == nil || trashMedia[j].DeletedAt == nil {
+			return false
+		}
+		return trashMedia[i].DeletedAt.After(*trashMedia[j].DeletedAt)
+	})
+
+	// Добавляем информацию о днях до удаления
+	type TrashItem struct {
+		*storage.Media
+		DaysRemaining int
+		DeletedDaysAgo int
+	}
+
+	var items []TrashItem
+	for _, m := range trashMedia {
+		daysAgo := 0
+		remaining := 30
+		if m.DeletedAt != nil {
+			daysAgo = int(time.Since(*m.DeletedAt).Hours() / 24)
+			remaining = 30 - daysAgo
+			if remaining < 0 {
+				remaining = 0
+			}
+		}
+		items = append(items, TrashItem{
+			Media:          m,
+			DaysRemaining:  remaining,
+			DeletedDaysAgo: daysAgo,
+		})
+	}
+
+	data := h.baseData(r)
+	data["TrashItems"] = items
+	data["TrashCount"] = len(items)
+	h.render(w, "trash.html", data)
+}
+
+// MoveToTrash перемещает медиа в корзину (soft delete)
+func (h *Handlers) MoveToTrash(w http.ResponseWriter, r *http.Request) {
+	// Проверка прав: только admin может удалять
+	role := auth.GetUserRole(r)
+	if !auth.CanDeleteMedia(role) {
+		h.jsonError(w, "Forbidden: недостаточно прав", http.StatusForbidden)
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+
+	if err := h.store.SoftDeleteMedia(id); err != nil {
+		h.jsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Инвалидируем кэш
+	h.cache.DeleteMedia(id)
+	h.cache.Clear()
+
+	h.jsonResponse(w, map[string]interface{}{
+		"status":  "moved_to_trash",
+		"message": "Файл перемещён в корзину",
+	})
+}
+
+// RestoreFromTrash восстанавливает медиа из корзины
+func (h *Handlers) RestoreFromTrash(w http.ResponseWriter, r *http.Request) {
+	// Проверка прав: только admin и editor
+	role := auth.GetUserRole(r)
+	if !auth.CanEdit(role) {
+		h.jsonError(w, "Forbidden: недостаточно прав", http.StatusForbidden)
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+
+	if err := h.store.RestoreMedia(id); err != nil {
+		h.jsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Инвалидируем кэш
+	h.cache.DeleteMedia(id)
+	h.cache.Clear()
+
+	h.jsonResponse(w, map[string]interface{}{
+		"status":  "restored",
+		"message": "Файл восстановлен",
+	})
+}
+
+// PermanentDelete окончательно удаляет медиа
+func (h *Handlers) PermanentDelete(w http.ResponseWriter, r *http.Request) {
+	// Проверка прав: только admin
+	role := auth.GetUserRole(r)
+	if !auth.CanDeleteMedia(role) {
+		h.jsonError(w, "Forbidden: недостаточно прав", http.StatusForbidden)
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+
+	// Получаем информацию о медиа для удаления физического файла
+	media, err := h.store.GetMedia(id)
+	if err != nil {
+		h.jsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if media == nil {
+		h.jsonError(w, "Media not found", http.StatusNotFound)
+		return
+	}
+
+	// Удаляем физический файл с диска
+	if err := os.Remove(media.Path); err != nil && !os.IsNotExist(err) {
+		log.Printf("Warning: failed to delete file %s: %v", media.Path, err)
+	}
+
+	// Удаляем thumbnails
+	h.thumbGen.DeleteThumbnails(id)
+
+	// Удаляем из БД и индексов
+	if err := h.store.DeleteMedia(id); err != nil {
+		h.jsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Инвалидируем кэш
+	h.cache.DeleteMedia(id)
+	h.cache.Clear()
+
+	h.jsonResponse(w, map[string]interface{}{
+		"status":  "deleted",
+		"message": "Файл удалён окончательно",
+	})
+}
+
+// EmptyTrash очищает всю корзину
+func (h *Handlers) EmptyTrash(w http.ResponseWriter, r *http.Request) {
+	// Проверка прав: только admin
+	role := auth.GetUserRole(r)
+	if !auth.CanDeleteMedia(role) {
+		h.jsonError(w, "Forbidden: недостаточно прав", http.StatusForbidden)
+		return
+	}
+
+	trashMedia, err := h.store.ListTrashMedia()
+	if err != nil {
+		h.jsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var deleted int
+	for _, m := range trashMedia {
+		// Удаляем физический файл с диска
+		if err := os.Remove(m.Path); err != nil && !os.IsNotExist(err) {
+			log.Printf("Warning: failed to delete file %s: %v", m.Path, err)
+		}
+
+		// Удаляем thumbnails
+		h.thumbGen.DeleteThumbnails(m.ID)
+
+		// Удаляем из БД
+		if err := h.store.DeleteMedia(m.ID); err != nil {
+			log.Printf("Error deleting media %s: %v", m.ID, err)
+			continue
+		}
+		deleted++
+	}
+
+	// Инвалидируем кэш
+	h.cache.Clear()
+
+	h.jsonResponse(w, map[string]interface{}{
+		"status":  "emptied",
+		"deleted": deleted,
+		"message": "Корзина очищена",
+	})
+}
+
+// GetMediaInfo возвращает информацию о медиа в JSON
+func (h *Handlers) GetMediaInfo(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	media, err := h.store.GetMedia(id)
+	if err != nil {
+		h.jsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if media == nil {
+		h.jsonError(w, "Media not found", http.StatusNotFound)
+		return
+	}
+
+	h.jsonResponse(w, media)
+}
+
+// ReplaceDuplicate заменяет оригинал на дубликат
+func (h *Handlers) ReplaceDuplicate(w http.ResponseWriter, r *http.Request) {
+	// Проверка прав: только admin
+	role := auth.GetUserRole(r)
+	if role != "admin" {
+		h.jsonError(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	var req struct {
+		DuplicateID string `json:"duplicate_id"`
+		OriginalID  string `json:"original_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Получаем дубликат (тот что в корзине)
+	duplicate, err := h.store.GetMedia(req.DuplicateID)
+	if err != nil || duplicate == nil {
+		h.jsonError(w, "Duplicate not found", http.StatusNotFound)
+		return
+	}
+
+	// Получаем оригинал
+	original, err := h.store.GetMedia(req.OriginalID)
+	if err != nil || original == nil {
+		h.jsonError(w, "Original not found", http.StatusNotFound)
+		return
+	}
+
+	// 1. Оригинал становится дубликатом и перемещается в корзину
+	now := time.Now()
+	original.DuplicateOf = req.DuplicateID
+	original.DeletedAt = &now
+	if err := h.store.SaveMedia(original); err != nil {
+		h.jsonError(w, "Failed to update original: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 2. Дубликат становится основным файлом и восстанавливается из корзины
+	duplicate.DuplicateOf = ""
+	duplicate.DeletedAt = nil
+	if err := h.store.SaveMedia(duplicate); err != nil {
+		h.jsonError(w, "Failed to update duplicate: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Инвалидируем кэш
+	h.cache.Clear()
+
+	h.jsonResponse(w, map[string]interface{}{
+		"status":  "replaced",
+		"message": "Оригинал заменён на дубликат",
+	})
+}
+
+// BulkMoveToTrash перемещает несколько медиа в корзину
+func (h *Handlers) BulkMoveToTrash(w http.ResponseWriter, r *http.Request) {
+	// Проверка прав: только admin
+	role := auth.GetUserRole(r)
+	if !auth.CanDeleteMedia(role) {
+		h.jsonError(w, "Forbidden: недостаточно прав", http.StatusForbidden)
+		return
+	}
+
+	var req struct {
+		MediaIDs []string `json:"media_ids"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	var moved int
+	for _, id := range req.MediaIDs {
+		if err := h.store.SoftDeleteMedia(id); err != nil {
+			log.Printf("Error moving media %s to trash: %v", id, err)
+			continue
+		}
+		h.cache.DeleteMedia(id)
+		moved++
+	}
+
+	h.cache.Clear()
+
+	h.jsonResponse(w, map[string]interface{}{
+		"status": "moved_to_trash",
+		"count":  moved,
+	})
+}
+
+// BulkRestore восстанавливает несколько медиа из корзины
+func (h *Handlers) BulkRestore(w http.ResponseWriter, r *http.Request) {
+	// Проверка прав: только admin и editor
+	role := auth.GetUserRole(r)
+	if !auth.CanEdit(role) {
+		h.jsonError(w, "Forbidden: недостаточно прав", http.StatusForbidden)
+		return
+	}
+
+	var req struct {
+		MediaIDs []string `json:"media_ids"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	var restored int
+	for _, id := range req.MediaIDs {
+		if err := h.store.RestoreMedia(id); err != nil {
+			log.Printf("Error restoring media %s: %v", id, err)
+			continue
+		}
+		h.cache.DeleteMedia(id)
+		restored++
+	}
+
+	h.cache.Clear()
+
+	h.jsonResponse(w, map[string]interface{}{
+		"status": "restored",
+		"count":  restored,
+	})
+}
+
+// TrashStats возвращает статистику корзины
+func (h *Handlers) TrashStats(w http.ResponseWriter, r *http.Request) {
+	count, totalSize, err := h.store.GetTrashStats()
+	if err != nil {
+		h.jsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	h.jsonResponse(w, map[string]interface{}{
+		"count":      count,
+		"total_size": totalSize,
+	})
+}
+
 // === Helpers ===
 
 // wantsHTML проверяет, запрашивает ли клиент HTML (браузер или HTMX)
@@ -1323,8 +1697,35 @@ func (h *Handlers) wantsHTML(r *http.Request) bool {
 
 func (h *Handlers) render(w http.ResponseWriter, name string, data interface{}) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.templates.ExecuteTemplate(w, name, data); err != nil {
-		log.Printf("Template error: %v", err)
+
+	tmpl, ok := h.pageTemplates[name]
+	if !ok {
+		log.Printf("Template not found: %s", name)
+		http.Error(w, "Template not found", http.StatusInternalServerError)
+		return
+	}
+
+	// Выполняем шаблон "base" который использует блоки определённые в странице
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		log.Printf("Template error for %s: %v", name, err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+	}
+}
+
+// renderPartial рендерит фрагмент шаблона (без base)
+func (h *Handlers) renderPartial(w http.ResponseWriter, name string, data interface{}) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	tmpl, ok := h.pageTemplates[name]
+	if !ok {
+		log.Printf("Template not found: %s", name)
+		http.Error(w, "Template not found", http.StatusInternalServerError)
+		return
+	}
+
+	// Выполняем шаблон напрямую по имени (для фрагментов)
+	if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
+		log.Printf("Template error for %s: %v", name, err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 	}
 }

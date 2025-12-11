@@ -1,0 +1,159 @@
+{{define "title"}}Карта - PhotoCore{{end}}
+
+{{define "head"}}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+{{end}}
+
+{{define "styles"}}
+/* Map page - fixed header override */
+.header {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+#map {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+.photo-popup {
+    text-align: center;
+}
+.photo-popup img {
+    max-width: 200px;
+    max-height: 150px;
+    border-radius: var(--radius-xs);
+    margin-bottom: var(--spacing-sm);
+}
+.photo-popup a {
+    display: block;
+    margin-top: var(--spacing-sm);
+    color: var(--md-primary);
+}
+.map-stats {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background-color: var(--md-surface-container);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem var(--spacing-md);
+    font-size: 0.875rem;
+    z-index: 1000;
+    box-shadow: var(--elevation-2);
+}
+.empty-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--md-surface-container);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xl) 3rem;
+    text-align: center;
+    z-index: 1000;
+    box-shadow: var(--elevation-3);
+}
+.empty-overlay h3 {
+    margin-bottom: var(--spacing-sm);
+}
+.empty-overlay p {
+    color: var(--text-secondary);
+}
+
+/* Dark map tiles */
+.leaflet-tile-pane {
+    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
+.leaflet-control-zoom a {
+    background-color: var(--md-surface-container) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+}
+.leaflet-control-attribution {
+    background-color: var(--md-surface-container) !important;
+    color: var(--text-secondary) !important;
+}
+.leaflet-attribution-flag {
+    display: none !important;
+}
+.leaflet-popup-content-wrapper {
+    background-color: var(--md-surface-container);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+}
+.leaflet-popup-tip {
+    background-color: var(--md-surface-container);
+}
+{{end}}
+
+{{define "content"}}
+<div id="map"></div>
+<div class="map-stats" id="stats"></div>
+{{end}}
+
+{{define "scripts"}}
+// Initialize map
+const map = L.map('map').setView([55.75, 37.62], 4); // Moscow as default center
+
+// Add OpenStreetMap tiles
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+// Create marker cluster group
+const markers = L.markerClusterGroup({
+    maxClusterRadius: 50,
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true
+});
+
+// Load geo points
+fetch('/api/geo')
+    .then(r => r.json())
+    .then(points => {
+        if (!points || points.length === 0) {
+            document.getElementById('stats').innerHTML = 'Нет фото с геолокацией';
+            return;
+        }
+
+        document.getElementById('stats').innerHTML = 'Фото на карте: ' + points.length;
+
+        const bounds = [];
+
+        points.forEach(point => {
+            const marker = L.marker([point.lat, point.lon]);
+
+            const popup = `
+                <div class="photo-popup">
+                    <img src="${point.thumb_url}" alt="Photo">
+                    <a href="/view/${point.media_id}">Открыть</a>
+                </div>
+            `;
+
+            marker.bindPopup(popup);
+            markers.addLayer(marker);
+            bounds.push([point.lat, point.lon]);
+        });
+
+        map.addLayer(markers);
+
+        // Fit map to show all markers
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    })
+    .catch(err => {
+        console.error('Error loading geo points:', err);
+        document.getElementById('stats').innerHTML = 'Ошибка загрузки';
+    });
+{{end}}

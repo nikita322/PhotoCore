@@ -1,0 +1,30 @@
+{{define "gallery_all.html"}}
+{{range .Groups}}
+<section class="section" data-period="{{.Period}}">
+    <h2 class="section-title period-header-inline" onclick="scrollToPeriod('{{.Period}}')">{{.Label}} <span class="period-count">({{len .Media}})</span></h2>
+    <div class="grid">
+        {{range .Media}}
+        <div class="media-card" data-id="{{.ID}}" data-filename="{{.Filename}}" data-meta="{{if .Metadata.Camera}}{{.Metadata.Camera}}{{end}}{{if .Metadata.Aperture}} - {{.Metadata.Aperture}}{{end}}{{if .Metadata.ShutterSpeed}} - {{.Metadata.ShutterSpeed}}{{end}}{{if .Metadata.ISO}} - ISO {{.Metadata.ISO}}{{end}}" onclick="openLightbox('{{.ID}}', '{{.Filename}}', '{{if .Metadata.Camera}}{{.Metadata.Camera}}{{end}}{{if .Metadata.Aperture}} - {{.Metadata.Aperture}}{{end}}{{if .Metadata.ShutterSpeed}} - {{.Metadata.ShutterSpeed}}{{end}}{{if .Metadata.ISO}} - ISO {{.Metadata.ISO}}{{end}}')">
+            <img data-src="/media/{{.ID}}/thumb" alt="{{.Filename}}">
+            <span class="favorite-badge" onclick="toggleFavorite('{{.ID}}', event)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg></span>
+            {{if eq .Type "video"}}
+            <span class="badge video">VIDEO</span>
+            {{else if eq .Type "raw"}}
+            <span class="badge raw">RAW</span>
+            {{end}}
+            <div class="overlay">
+                <div class="filename">{{.Filename}}</div>
+            </div>
+        </div>
+        {{end}}
+    </div>
+</section>
+{{end}}
+
+{{if not .Groups}}
+<div class="empty-state">
+    <h3>Пока ничего нет</h3>
+    <p>Добавьте медиа-файлы в директорию галереи</p>
+</div>
+{{end}}
+{{end}}

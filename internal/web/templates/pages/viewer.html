@@ -1,0 +1,135 @@
+{{define "title"}}{{.Media.Filename}} - PhotoCore{{end}}
+
+{{define "header"}}{{/* No header for viewer page */}}{{end}}
+
+{{define "styles"}}
+/* Viewer page specific styles (info-panel, info-grid moved to base) */
+.viewer-header {
+    background-color: var(--md-surface-container);
+    border-bottom: 1px solid var(--border);
+    padding: var(--spacing-md) var(--spacing-xl);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+.back-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+.back-btn:hover {
+    color: var(--text-primary);
+}
+.filename {
+    font-weight: 500;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.viewer {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xl);
+    overflow: hidden;
+    min-height: calc(100vh - 200px);
+    background-color: var(--md-surface-dim);
+}
+.viewer img, .viewer video {
+    max-width: 100%;
+    max-height: calc(100vh - 200px);
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+}
+{{end}}
+
+{{define "content"}}
+<header class="viewer-header">
+    <div class="header-left">
+        <a href="/gallery" class="back-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+            </svg>
+            Назад
+        </a>
+        <span class="filename">{{.Media.Filename}}</span>
+    </div>
+    <a href="/media/{{.Media.ID}}" download class="back-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/>
+        </svg>
+        Скачать
+    </a>
+</header>
+
+<main class="viewer">
+    {{if eq .Media.Type "video"}}
+    <video controls autoplay>
+        <source src="/media/{{.Media.ID}}" type="{{.Media.MimeType}}">
+    </video>
+    {{else}}
+    <img src="/media/{{.Media.ID}}" alt="{{.Media.Filename}}">
+    {{end}}
+</main>
+
+<div class="info-panel">
+    <div class="info-grid">
+        {{if .Media.Metadata.Camera}}
+        <div class="info-item">
+            <span class="info-label">Камера</span>
+            <span class="info-value">{{.Media.Metadata.Camera}}</span>
+        </div>
+        {{end}}
+        {{if .Media.Metadata.Lens}}
+        <div class="info-item">
+            <span class="info-label">Объектив</span>
+            <span class="info-value">{{.Media.Metadata.Lens}}</span>
+        </div>
+        {{end}}
+        {{if .Media.Metadata.FocalLength}}
+        <div class="info-item">
+            <span class="info-label">Фокусное</span>
+            <span class="info-value">{{.Media.Metadata.FocalLength}}</span>
+        </div>
+        {{end}}
+        {{if .Media.Metadata.Aperture}}
+        <div class="info-item">
+            <span class="info-label">Диафрагма</span>
+            <span class="info-value">{{.Media.Metadata.Aperture}}</span>
+        </div>
+        {{end}}
+        {{if .Media.Metadata.ShutterSpeed}}
+        <div class="info-item">
+            <span class="info-label">Выдержка</span>
+            <span class="info-value">{{.Media.Metadata.ShutterSpeed}}</span>
+        </div>
+        {{end}}
+        {{if .Media.Metadata.ISO}}
+        <div class="info-item">
+            <span class="info-label">ISO</span>
+            <span class="info-value">{{.Media.Metadata.ISO}}</span>
+        </div>
+        {{end}}
+        {{if .Media.Width}}
+        <div class="info-item">
+            <span class="info-label">Размер</span>
+            <span class="info-value">{{.Media.Width}} × {{.Media.Height}}</span>
+        </div>
+        {{end}}
+        <div class="info-item">
+            <span class="info-label">Тип</span>
+            <span class="info-value">{{.Media.MimeType}}</span>
+        </div>
+    </div>
+</div>
+{{end}}

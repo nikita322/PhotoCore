@@ -1,0 +1,103 @@
+{{define "title"}}Поиск - PhotoCore{{end}}
+
+{{define "head"}}
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+{{end}}
+
+{{define "styles"}}
+/* Search page - most styles now in base.html */
+.tag-chips {
+    margin-top: var(--spacing-md);
+}
+{{end}}
+
+{{define "content"}}
+<main class="main-centered">
+    <div class="search-box">
+        <form id="search-form" hx-get="/api/search" hx-target="#results" hx-trigger="submit">
+            <div class="search-row">
+                <input type="text" name="q" class="search-input" placeholder="Поиск по имени файла, камере, объективу...">
+                <button type="submit" class="btn btn-primary">Найти</button>
+            </div>
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label>Тип</label>
+                    <select name="type" class="filter-select">
+                        <option value="">Все</option>
+                        <option value="image">Фото</option>
+                        <option value="video">Видео</option>
+                        <option value="raw">RAW</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Камера</label>
+                    <select name="camera" class="filter-select">
+                        <option value="">Все камеры</option>
+                        {{range .Cameras}}
+                        <option value="{{.}}">{{.}}</option>
+                        {{end}}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>От даты</label>
+                    <input type="date" name="from" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label>До даты</label>
+                    <input type="date" name="to" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label>
+                        <input type="checkbox" name="favorite" value="true"> Только избранное
+                    </label>
+                </div>
+                <div class="filter-group">
+                    <label>
+                        <input type="checkbox" name="gps" value="true"> С геолокацией
+                    </label>
+                </div>
+            </div>
+            {{if .Tags}}
+            <div class="tag-chips">
+                {{range .Tags}}
+                <span class="tag-chip" onclick="toggleTag(this, '{{.Name}}')">{{.Name}} ({{.MediaCount}})</span>
+                {{end}}
+            </div>
+            <input type="hidden" name="tags" id="selected-tags" value="">
+            {{end}}
+        </form>
+    </div>
+
+    <div id="results"></div>
+</main>
+{{end}}
+
+{{define "scripts"}}
+let selectedTags = [];
+const favSet = new Set([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
+
+function updateFavoriteBadges() {
+    document.querySelectorAll('.media-card').forEach(card => {
+        const badge = card.querySelector('.favorite-badge');
+        if (badge && favSet.has(card.dataset.id)) {
+            badge.classList.add('active');
+        }
+    });
+}
+
+document.body.addEventListener('htmx:afterSwap', function() {
+    updateFavoriteBadges();
+});
+
+function toggleTag(el, tag) {
+    const idx = selectedTags.indexOf(tag);
+    if (idx >= 0) {
+        selectedTags.splice(idx, 1);
+        el.classList.remove('selected');
+    } else {
+        selectedTags.push(tag);
+        el.classList.add('selected');
+    }
+    document.getElementById('selected-tags').value = selectedTags.join(',');
+}
+{{end}}

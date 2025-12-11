@@ -22,27 +22,30 @@ const (
 
 // Media представляет медиа-файл в галерее
 type Media struct {
-	ID         string    `json:"id"`          // SHA256 от пути
-	Path       string    `json:"path"`        // Полный путь к файлу
-	RelPath    string    `json:"rel_path"`    // Относительный путь от корня медиа
-	Dir        string    `json:"dir"`         // Директория файла
-	Filename   string    `json:"filename"`    // Имя файла
-	Ext        string    `json:"ext"`         // Расширение (.jpg, .mp4, etc)
-	Type       MediaType `json:"type"`        // image, video, raw
-	MimeType   string    `json:"mime_type"`   // MIME тип
-	Size       int64     `json:"size"`        // Размер в байтах
-	Width      int       `json:"width"`       // Ширина (для изображений/видео)
-	Height     int       `json:"height"`      // Высота
-	Duration   float64   `json:"duration"`    // Длительность (для видео)
-	TakenAt    time.Time `json:"taken_at"`    // Дата съемки (EXIF)
-	CreatedAt  time.Time `json:"created_at"`  // Дата добавления в БД
-	ModifiedAt time.Time `json:"modified_at"` // Дата модификации файла
-	Checksum   string    `json:"checksum"`    // MD5/SHA для детекции изменений
-	ThumbSmall string    `json:"thumb_small"` // Путь к маленькому превью
-	ThumbLarge string    `json:"thumb_large"` // Путь к большому превью
-	Metadata   Metadata  `json:"metadata"`    // Дополнительные метаданные
-	IsFavorite bool      `json:"is_favorite"` // Отмечено как избранное
-	Tags       []string  `json:"tags"`        // Теги
+	ID          string     `json:"id"`                     // SHA256 от пути
+	Path        string     `json:"path"`                   // Полный путь к файлу
+	RelPath     string     `json:"rel_path"`               // Относительный путь от корня медиа
+	Dir         string     `json:"dir"`                    // Директория файла
+	Filename    string     `json:"filename"`               // Имя файла
+	Ext         string     `json:"ext"`                    // Расширение (.jpg, .mp4, etc)
+	Type        MediaType  `json:"type"`                   // image, video, raw
+	MimeType    string     `json:"mime_type"`              // MIME тип
+	Size        int64      `json:"size"`                   // Размер в байтах
+	Width       int        `json:"width"`                  // Ширина (для изображений/видео)
+	Height      int        `json:"height"`                 // Высота
+	Duration    float64    `json:"duration"`               // Длительность (для видео)
+	TakenAt     time.Time  `json:"taken_at"`               // Дата съемки (EXIF)
+	CreatedAt   time.Time  `json:"created_at"`             // Дата добавления в БД
+	ModifiedAt  time.Time  `json:"modified_at"`            // Дата модификации файла
+	DeletedAt   *time.Time `json:"deleted_at"`             // Дата удаления (nil = не удалено)
+	Checksum    string     `json:"checksum"`               // SHA256 хеш файла (для точных дубликатов)
+	ImageHash   uint64     `json:"image_hash"`             // Perceptual hash (для визуальных дубликатов)
+	DuplicateOf string     `json:"duplicate_of,omitempty"` // ID оригинала (если дубликат)
+	ThumbSmall  string     `json:"thumb_small"`            // Путь к маленькому превью
+	ThumbLarge  string     `json:"thumb_large"`            // Путь к большому превью
+	Metadata    Metadata   `json:"metadata"`               // Дополнительные метаданные
+	IsFavorite  bool       `json:"is_favorite"`            // Отмечено как избранное
+	Tags        []string   `json:"tags"`                   // Теги
 }
 
 // Metadata содержит EXIF и другие метаданные
@@ -151,4 +154,11 @@ type GeoPoint struct {
 	Lat      float64 `json:"lat"`
 	Lon      float64 `json:"lon"`
 	ThumbURL string  `json:"thumb_url"`
+}
+
+// DuplicateGroup представляет группу дубликатов
+type DuplicateGroup struct {
+	Type     string   `json:"type"`      // "exact" или "similar"
+	Media    []*Media `json:"media"`     // Медиа в группе
+	Distance int      `json:"distance"`  // Hamming distance (для similar)
 }

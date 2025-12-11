@@ -1,0 +1,94 @@
+{{define "header_styles"}}
+/* Header */
+.header {
+    background-color: var(--md-surface-container);
+    border-bottom: 1px solid var(--border);
+    padding: var(--spacing-md) var(--spacing-xl);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    gap: var(--spacing-xl);
+}
+.logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-decoration: none;
+    position: absolute;
+    left: var(--spacing-xl);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    transition: color var(--transition-fast);
+}
+.logo:hover {
+    color: var(--md-primary);
+}
+.logo-icon {
+    width: 28px;
+    height: 28px;
+}
+.main-nav {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+.nav-link {
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    text-decoration: none;
+}
+.nav-link:hover {
+    color: var(--text-primary);
+    background-color: var(--md-surface-container-high);
+}
+.nav-link.active {
+    color: var(--md-on-primary-container);
+    background-color: var(--md-primary-container);
+}
+
+@media (max-width: 768px) {
+    .main-nav { display: none; }
+    .logo { position: static; }
+}
+{{end}}
+
+{{define "favicon"}}
+<link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+{{end}}
+
+{{define "header"}}
+<header class="header">
+    <a href="/gallery" class="logo">
+        <img src="/static/images/logo.svg" alt="" class="logo-icon">
+        PhotoCore
+    </a>
+    <nav class="main-nav">
+        <a href="/gallery" class="nav-link" data-page="gallery">Галерея</a>
+        <a href="/albums" class="nav-link" data-page="albums">Альбомы</a>
+        <a href="/favorites" class="nav-link" data-page="favorites">Избранное</a>
+        <a href="/map" class="nav-link" data-page="map">Карта</a>
+        <a href="/search" class="nav-link" data-page="search">Поиск</a>
+        {{if .CanEdit}}<a href="/trash" class="nav-link" data-page="trash">Корзина</a>{{end}}
+        {{if .IsAdmin}}<a href="/admin" class="nav-link" data-page="admin">Админка</a>{{end}}
+    </nav>
+</header>
+<script>
+(function() {
+    var path = window.location.pathname;
+    var page = 'gallery';
+    if (path.startsWith('/albums') || path.startsWith('/album/')) page = 'albums';
+    else if (path.startsWith('/favorites')) page = 'favorites';
+    else if (path.startsWith('/map')) page = 'map';
+    else if (path.startsWith('/search')) page = 'search';
+    else if (path.startsWith('/trash')) page = 'trash';
+    else if (path.startsWith('/admin')) page = 'admin';
+    var link = document.querySelector('.nav-link[data-page="' + page + '"]');
+    if (link) link.classList.add('active');
+})();
+</script>
+{{end}}

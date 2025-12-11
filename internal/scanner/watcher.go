@@ -210,7 +210,7 @@ func (w *Watcher) handleFSEvent(event fsnotify.Event) {
 	if w.debounceTimer != nil {
 		w.debounceTimer.Stop()
 	}
-	w.debounceTimer = time.AfterFunc(500*time.Millisecond, w.processPendingEvents)
+	w.debounceTimer = time.AfterFunc(2*time.Second, w.processPendingEvents)
 	w.debounceMu.Unlock()
 }
 

@@ -16,9 +16,9 @@ ENV GOMODCACHE=/go-cache/mod
 # Expose port
 EXPOSE 6550
 
-# Build and run at startup
-# Source code mounted to /src, downloads deps, builds to /app/photocore
-ENTRYPOINT ["sh", "-c", "cd /src && go mod download && go build -ldflags='-w -s' -o /app/photocore ./cmd/photocore && /app/photocore"]
+# Build and run
+# exec ensures signals go directly to photocore
+ENTRYPOINT ["sh", "-c", "cd /src && go mod download && go build -ldflags='-w -s' -o /app/photocore ./cmd/photocore && exec /app/photocore"]
 
 # Build (один раз, из папки src/):
 #   podman build -t photocore .

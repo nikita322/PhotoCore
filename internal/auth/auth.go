@@ -65,6 +65,11 @@ func CanEditAlbum(role string) bool {
 	return role == storage.RoleAdmin || role == storage.RoleEditor
 }
 
+// CanEdit проверяет право на редактирование (admin и editor)
+func CanEdit(role string) bool {
+	return role == storage.RoleAdmin || role == storage.RoleEditor
+}
+
 // CanManageTags проверяет право на добавление тегов (admin и editor)
 func CanManageTags(role string) bool {
 	return role == storage.RoleAdmin || role == storage.RoleEditor
