@@ -1,0 +1,588 @@
+{{define "title"}}Загрузка - PhotoCore{{end}}
+
+{{define "styles"}}
+.upload-zone {
+    border: 2px dashed var(--md-outline);
+    border-radius: 16px;
+    padding: 3rem;
+    text-align: center;
+    background: var(--md-surface-container-low);
+    transition: all 0.2s;
+    cursor: pointer;
+    margin-bottom: 2rem;
+}
+
+.upload-zone.dragover {
+    border-color: var(--md-primary);
+    background: var(--md-surface-container);
+    transform: scale(1.02);
+}
+
+.upload-zone-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1rem;
+    opacity: 0.5;
+}
+
+.upload-zone h2 {
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--md-on-surface);
+}
+
+.upload-zone p {
+    color: var(--md-on-surface-variant);
+    margin-bottom: 1.5rem;
+}
+
+.upload-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--md-surface-container);
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+
+.file-item.uploading {
+    opacity: 0.7;
+}
+
+.file-item.success {
+    background: var(--md-surface-container-high);
+    border-left: 3px solid var(--md-tertiary);
+}
+
+.file-item.error {
+    background: var(--md-error-container);
+    border-left: 3px solid var(--md-error);
+}
+
+.file-item.queued {
+    background: var(--md-primary-container);
+    border-left: 3px solid var(--md-primary);
+    opacity: 0.8;
+}
+
+.file-preview {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: var(--md-surface-container-highest);
+    flex-shrink: 0;
+}
+
+.file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.25rem;
+}
+
+.file-size {
+    font-size: 0.875rem;
+    color: var(--md-on-surface-variant);
+}
+
+.file-progress {
+    width: 100%;
+    height: 4px;
+    background: var(--md-surface-container-highest);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.file-progress-bar {
+    height: 100%;
+    background: var(--md-primary);
+    transition: width 0.3s;
+}
+
+.file-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.upload-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--md-surface-container);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+}
+
+.upload-stats {
+    display: flex;
+    gap: 2rem;
+    font-size: 0.875rem;
+}
+
+.upload-stat {
+    display: flex;
+    flex-direction: column;
+}
+
+.upload-stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.upload-stat-label {
+    color: var(--md-on-surface-variant);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .upload-zone {
+        padding: 2rem 1rem;
+    }
+
+    .upload-summary {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .upload-stats {
+        justify-content: space-around;
+    }
+
+    .action-buttons {
+        width: 100%;
+    }
+
+    .action-buttons button {
+        flex: 1;
+    }
+}
+{{end}}
+
+{{define "content"}}
+<main class="main">
+    <div class="page-header">
+        <h1 class="page-title">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Загрузка фото
+        </h1>
+    </div>
+
+    <!-- Upload Zone -->
+    <div class="upload-zone" id="uploadZone">
+        <svg class="upload-zone-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+
+        <h2>Перетащите файлы сюда</h2>
+        <p>или выберите файлы на устройстве</p>
+
+        <div class="upload-buttons">
+            <button class="md-button md-button-filled" onclick="document.getElementById('fileInput').click()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+                Выбрать файлы
+            </button>
+
+            {{if .CanCapture}}
+            <button class="md-button md-button-outlined" onclick="document.getElementById('cameraInput').click()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                </svg>
+                Снять фото
+            </button>
+            {{end}}
+        </div>
+
+        <input type="file" id="fileInput" accept="image/*,video/*" multiple style="display: none;">
+        {{if .CanCapture}}
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
+        {{end}}
+    </div>
+
+    <!-- Upload Summary -->
+    <div id="uploadSummary" class="upload-summary" style="display: none;">
+        <div class="upload-stats">
+            <div class="upload-stat">
+                <span class="upload-stat-value" id="totalFiles">0</span>
+                <span class="upload-stat-label">файлов</span>
+            </div>
+            <div class="upload-stat">
+                <span class="upload-stat-value" id="uploadedFiles">0</span>
+                <span class="upload-stat-label">загружено</span>
+            </div>
+            <div class="upload-stat">
+                <span class="upload-stat-value" id="errorFiles">0</span>
+                <span class="upload-stat-label">ошибок</span>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="md-button md-button-filled" id="uploadBtn" onclick="startUpload()" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Загрузить
+            </button>
+            <button class="md-button md-button-text" onclick="clearFiles()">Очистить</button>
+        </div>
+    </div>
+
+    <!-- File List -->
+    <div id="fileList" class="file-list"></div>
+</main>
+{{end}}
+
+{{define "scripts"}}
+let selectedFiles = [];
+let isUploading = false;
+
+// === File Selection ===
+
+function handleFiles(files) {
+    const newFiles = Array.from(files).filter(file => {
+        // Проверяем MIME тип
+        if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+            showToast('Неподдерживаемый тип файла: ' + file.name, 'error');
+            return false;
+        }
+
+        // Проверяем размер (100MB)
+        if (file.size > 100 * 1024 * 1024) {
+            showToast('Файл слишком большой: ' + file.name + ' (макс 100MB)', 'error');
+            return false;
+        }
+
+        // Проверяем дубликаты
+        if (selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+            return false;
+        }
+
+        return true;
+    });
+
+    newFiles.forEach(file => {
+        selectedFiles.push({
+            file: file,
+            id: generateId(),
+            status: 'pending',
+            progress: 0,
+            preview: null
+        });
+    });
+
+    renderFileList();
+    updateSummary();
+
+    // Генерируем превью для изображений
+    newFiles.forEach((file, index) => {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const item = selectedFiles.find(f => f.file === file);
+                if (item) {
+                    item.preview = e.target.result;
+                    renderFileList();
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
+
+// === File List Rendering ===
+
+function renderFileList() {
+    const container = document.getElementById('fileList');
+
+    if (selectedFiles.length === 0) {
+        container.innerHTML = '';
+        document.getElementById('uploadSummary').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('uploadSummary').style.display = 'flex';
+
+    container.innerHTML = selectedFiles.map(item => {
+        const statusClass = item.status === 'uploading' ? 'uploading' :
+                          item.status === 'success' ? 'success' :
+                          item.status === 'queued' ? 'queued' :
+                          item.status === 'error' ? 'error' : '';
+
+        const statusIcon = item.status === 'success' ?
+            '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' :
+            item.status === 'queued' ?
+            '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' :
+            item.status === 'error' ?
+            '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' :
+            '';
+
+        const preview = item.preview ?
+            `<img src="${item.preview}" class="file-preview" alt="${item.file.name}">` :
+            `<div class="file-preview" style="display: flex; align-items: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+            </div>`;
+
+        return `
+            <div class="file-item ${statusClass}" data-id="${item.id}">
+                ${preview}
+                <div class="file-info">
+                    <div class="file-name">${item.file.name}</div>
+                    <div class="file-size">${formatBytes(item.file.size)}</div>
+                    ${item.status === 'uploading' ?
+                        `<div class="file-progress"><div class="file-progress-bar" style="width: ${item.progress}%"></div></div>` : ''}
+                    ${item.message ? `<div class="file-size" style="margin-top: 0.25rem;">${item.message}</div>` : ''}
+                </div>
+                <div class="file-actions">
+                    ${statusIcon ? `<span style="color: var(--md-${item.status === 'success' ? 'tertiary' : item.status === 'queued' ? 'primary' : 'error'})">${statusIcon}</span>` : ''}
+                    ${item.status !== 'uploading' && item.status !== 'success' && item.status !== 'queued' ?
+                        `<button class="md-icon-button" onclick="removeFile('${item.id}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// === Upload ===
+
+async function startUpload() {
+    if (isUploading || selectedFiles.length === 0) return;
+
+    const pendingFiles = selectedFiles.filter(f => f.status === 'pending' || f.status === 'error');
+    if (pendingFiles.length === 0) {
+        showToast('Нет файлов для загрузки', 'warning');
+        return;
+    }
+
+    // Проверяем оффлайн режим
+    if (!navigator.onLine) {
+        // Оффлайн - добавляем в очередь Background Sync
+        if (window.PWA && window.PWA.addToUploadQueue) {
+            try {
+                showToast('Оффлайн режим: добавляем файлы в очередь...', 'info');
+
+                for (const item of pendingFiles) {
+                    await window.PWA.addToUploadQueue(item.file, {
+                        originalId: item.id
+                    });
+                    item.status = 'queued';
+                    item.message = 'В очереди (загрузится при подключении)';
+                    renderFileList();
+                    updateSummary();
+                }
+
+                showToast(`${pendingFiles.length} файлов добавлено в очередь`, 'success');
+
+                // Для iOS fallback - показываем кнопку ручной обработки
+                if (!window.PWA.supportsBackgroundSync()) {
+                    showToast('Background Sync не поддерживается. Файлы загрузятся при восстановлении соединения.', 'warning');
+                }
+            } catch (error) {
+                console.error('Failed to add to queue:', error);
+                showToast('Ошибка добавления в очередь: ' + error.message, 'error');
+            }
+        } else {
+            showToast('Нет интернета. Невозможно загрузить файлы.', 'error');
+        }
+        return;
+    }
+
+    // Онлайн - загружаем напрямую
+    isUploading = true;
+    document.getElementById('uploadBtn').disabled = true;
+
+    for (const item of pendingFiles) {
+        item.status = 'uploading';
+        item.progress = 0;
+        renderFileList();
+
+        try {
+            await uploadFile(item);
+            item.status = 'success';
+            item.progress = 100;
+        } catch (error) {
+            item.status = 'error';
+            item.message = error.message;
+        }
+
+        renderFileList();
+        updateSummary();
+    }
+
+    isUploading = false;
+
+    const hasErrors = selectedFiles.some(f => f.status === 'error');
+    const hasPending = selectedFiles.some(f => f.status === 'pending');
+
+    document.getElementById('uploadBtn').disabled = !hasErrors && !hasPending;
+
+    if (!hasErrors && !hasPending) {
+        showToast('Все файлы загружены!', 'success');
+    }
+}
+
+async function uploadFile(item) {
+    const formData = new FormData();
+    formData.append('files', item.file);
+
+    const xhr = new XMLHttpRequest();
+
+    return new Promise((resolve, reject) => {
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                item.progress = Math.round((e.loaded / e.total) * 100);
+                const progressBar = document.querySelector(`[data-id="${item.id}"] .file-progress-bar`);
+                if (progressBar) {
+                    progressBar.style.width = item.progress + '%';
+                }
+            }
+        });
+
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const response = JSON.parse(xhr.responseText);
+                if (response.messages && response.messages.length > 0) {
+                    const msg = response.messages.find(m => m.includes(item.file.name));
+                    item.message = msg || 'Загружено';
+                }
+                resolve();
+            } else {
+                const error = JSON.parse(xhr.responseText);
+                reject(new Error(error.error || 'Ошибка загрузки'));
+            }
+        });
+
+        xhr.addEventListener('error', () => {
+            reject(new Error('Ошибка сети'));
+        });
+
+        xhr.open('POST', '/api/upload');
+        xhr.send(formData);
+    });
+}
+
+// === Drag & Drop ===
+
+const uploadZone = document.getElementById('uploadZone');
+
+uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('dragover');
+});
+
+uploadZone.addEventListener('dragleave', () => {
+    uploadZone.classList.remove('dragover');
+});
+
+uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+});
+
+// === File Inputs ===
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+    handleFiles(e.target.files);
+    e.target.value = '';
+});
+
+{{if .CanCapture}}
+document.getElementById('cameraInput').addEventListener('change', (e) => {
+    handleFiles(e.target.files);
+    e.target.value = '';
+});
+{{end}}
+
+// === Actions ===
+
+function removeFile(id) {
+    selectedFiles = selectedFiles.filter(f => f.id !== id);
+    renderFileList();
+    updateSummary();
+}
+
+function clearFiles() {
+    if (isUploading) {
+        showToast('Дождитесь завершения загрузки', 'warning');
+        return;
+    }
+
+    selectedFiles = [];
+    renderFileList();
+    updateSummary();
+}
+
+function updateSummary() {
+    const total = selectedFiles.length;
+    const uploaded = selectedFiles.filter(f => f.status === 'success').length;
+    const errors = selectedFiles.filter(f => f.status === 'error').length;
+
+    document.getElementById('totalFiles').textContent = total;
+    document.getElementById('uploadedFiles').textContent = uploaded;
+    document.getElementById('errorFiles').textContent = errors;
+
+    const hasPending = selectedFiles.some(f => f.status === 'pending' || f.status === 'error');
+    document.getElementById('uploadBtn').disabled = !hasPending || isUploading;
+}
+
+// === Helpers ===
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+function generateId() {
+    return Math.random().toString(36).substr(2, 9);
+}
+{{end}}

@@ -9,6 +9,17 @@
 .tag-chips {
     margin-top: var(--spacing-md);
 }
+
+/* Hide search button text on mobile */
+@media (max-width: 600px) {
+    .search-btn-text {
+        display: none;
+    }
+    .search-btn {
+        padding: 0 var(--md-spacing-3);
+        min-width: 40px;
+    }
+}
 {{end}}
 
 {{define "content"}}
@@ -17,7 +28,10 @@
         <form id="search-form" hx-get="/api/search" hx-target="#results" hx-trigger="submit">
             <div class="search-row">
                 <input type="text" name="q" class="search-input" placeholder="Поиск по имени файла, камере, объективу...">
-                <button type="submit" class="btn btn-primary">Найти</button>
+                <button type="submit" class="md-button md-button-filled search-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <span class="search-btn-text">Найти</span>
+                </button>
             </div>
             <div class="filters-grid">
                 <div class="filter-group">
@@ -58,9 +72,12 @@
                 </div>
             </div>
             {{if .Tags}}
-            <div class="tag-chips">
+            <div class="tag-chips" style="display: flex; flex-wrap: wrap; gap: var(--md-spacing-2);">
                 {{range .Tags}}
-                <span class="tag-chip" onclick="toggleTag(this, '{{.Name}}')">{{.Name}} ({{.MediaCount}})</span>
+                <button type="button" class="md-chip md-chip-filter tag-chip" onclick="toggleTag(this, '{{.Name}}')">
+                    <span>{{.Name}}</span>
+                    <span style="color: var(--md-on-surface-variant); margin-left: 4px;">({{.MediaCount}})</span>
+                </button>
                 {{end}}
             </div>
             <input type="hidden" name="tags" id="selected-tags" value="">

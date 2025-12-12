@@ -1,0 +1,968 @@
+{{define "styles"}}
+/* === PWA SETTINGS PAGE === */
+.settings-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: var(--md-spacing-6);
+}
+
+.settings-header {
+    margin-bottom: var(--md-spacing-6);
+}
+
+.settings-title {
+    font-size: var(--md-typescale-headline-large);
+    font-weight: var(--md-weight-medium);
+    color: var(--md-on-surface);
+    margin-bottom: var(--md-spacing-2);
+}
+
+.settings-subtitle {
+    font-size: var(--md-typescale-body-medium);
+    color: var(--md-on-surface-variant);
+}
+
+.settings-section {
+    background-color: var(--md-surface-container);
+    border-radius: var(--md-radius-lg);
+    padding: var(--md-spacing-5);
+    margin-bottom: var(--md-spacing-4);
+    border: 1px solid var(--md-outline-variant);
+}
+
+.settings-section-title {
+    font-size: var(--md-typescale-title-large);
+    font-weight: var(--md-weight-medium);
+    color: var(--md-on-surface);
+    margin-bottom: var(--md-spacing-4);
+    display: flex;
+    align-items: center;
+    gap: var(--md-spacing-2);
+}
+
+.settings-section-title svg {
+    width: 24px;
+    height: 24px;
+    fill: var(--md-primary);
+}
+
+.settings-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--md-spacing-4) 0;
+    border-bottom: 1px solid var(--md-outline-variant);
+}
+
+.settings-item:last-child {
+    border-bottom: none;
+}
+
+.settings-item-info {
+    flex: 1;
+}
+
+.settings-item-label {
+    font-size: var(--md-typescale-body-large);
+    color: var(--md-on-surface);
+    margin-bottom: var(--md-spacing-1);
+}
+
+.settings-item-description {
+    font-size: var(--md-typescale-body-small);
+    color: var(--md-on-surface-variant);
+}
+
+.settings-item-value {
+    font-size: var(--md-typescale-body-medium);
+    color: var(--md-primary);
+    font-weight: var(--md-weight-medium);
+}
+
+/* Toggle Switch (Material 3) */
+.md-switch {
+    position: relative;
+    display: inline-block;
+    width: 52px;
+    height: 32px;
+}
+
+.md-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.md-switch-track {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--md-surface-container-highest);
+    border: 2px solid var(--md-outline);
+    border-radius: 16px;
+    transition: all 0.2s;
+}
+
+.md-switch-thumb {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 6px;
+    bottom: 6px;
+    background-color: var(--md-outline);
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.md-switch input:checked + .md-switch-track {
+    background-color: var(--md-primary);
+    border-color: var(--md-primary);
+}
+
+.md-switch input:checked + .md-switch-track .md-switch-thumb {
+    transform: translateX(20px);
+    background-color: var(--md-on-primary);
+}
+
+.md-switch input:disabled + .md-switch-track {
+    opacity: 0.38;
+    cursor: not-allowed;
+}
+
+/* Material Design 3 Custom Select/Dropdown */
+.md-select {
+    position: relative;
+    display: inline-block;
+    min-width: 180px;
+}
+
+.md-select-field {
+    position: relative;
+    width: 100%;
+    height: var(--md-comp-text-field-height, 56px);
+    padding: var(--md-spacing-4);
+    font-family: inherit;
+    font-size: var(--md-typescale-body-large);
+    line-height: 1.5;
+    color: var(--md-on-surface);
+    text-align: left;
+    background-color: transparent;
+    border: 1px solid var(--md-outline);
+    border-radius: var(--md-radius-xs, 4px);
+    cursor: pointer;
+    transition: all 280ms var(--md-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--md-spacing-2);
+}
+
+.md-select-field:hover:not(:disabled) {
+    border-color: var(--md-on-surface);
+    background-color: rgba(230, 225, 229, 0.04);
+}
+
+.md-select.active .md-select-field,
+.md-select-field:focus {
+    border-width: 2px;
+    border-color: var(--md-primary);
+}
+
+.md-select-field:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    border-color: var(--md-outline);
+}
+
+.md-select-value {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Dropdown arrow icon */
+.md-select-arrow {
+    width: 24px;
+    height: 24px;
+    fill: var(--md-on-surface-variant);
+    transition: transform 280ms var(--md-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
+                fill 280ms;
+    flex-shrink: 0;
+}
+
+.md-select.active .md-select-arrow {
+    transform: rotate(180deg);
+    fill: var(--md-primary);
+}
+
+.md-select-field:disabled .md-select-arrow {
+    opacity: 0.38;
+}
+
+/* Dropdown Menu */
+.md-select-menu {
+    position: absolute;
+    top: calc(100% + var(--md-spacing-1));
+    left: 0;
+    right: 0;
+    max-height: 280px;
+    background-color: var(--md-surface-container);
+    border-radius: var(--md-radius-md, 12px);
+    box-shadow: 0 4px 8px 3px rgba(0, 0, 0, 0.15),
+                0 1px 3px rgba(0, 0, 0, 0.30);
+    overflow-y: auto;
+    z-index: 1000;
+    opacity: 0;
+    transform: scaleY(0.8);
+    transform-origin: top center;
+    pointer-events: none;
+    transition: opacity 280ms var(--md-motion-easing-emphasized-decelerate, cubic-bezier(0.05, 0.7, 0.1, 1)),
+                transform 280ms var(--md-motion-easing-emphasized-decelerate, cubic-bezier(0.05, 0.7, 0.1, 1));
+}
+
+.md-select.active .md-select-menu {
+    opacity: 1;
+    transform: scaleY(1);
+    pointer-events: auto;
+}
+
+/* Scrollbar styling */
+.md-select-menu::-webkit-scrollbar {
+    width: 8px;
+}
+
+.md-select-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.md-select-menu::-webkit-scrollbar-thumb {
+    background: var(--md-outline);
+    border-radius: 4px;
+}
+
+.md-select-menu::-webkit-scrollbar-thumb:hover {
+    background: var(--md-on-surface-variant);
+}
+
+/* Menu Options */
+.md-select-option {
+    padding: var(--md-spacing-3) var(--md-spacing-4);
+    font-size: var(--md-typescale-body-large);
+    color: var(--md-on-surface);
+    cursor: pointer;
+    transition: background-color 200ms;
+    user-select: none;
+}
+
+.md-select-option:hover {
+    background-color: var(--md-state-hover-on-surface, rgba(230, 225, 229, 0.08));
+}
+
+.md-select-option.selected {
+    background-color: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+    font-weight: 500;
+}
+
+.md-select-option:active {
+    background-color: var(--md-state-pressed-on-surface, rgba(230, 225, 229, 0.12));
+}
+
+/* Supporting text (optional) */
+.md-select-supporting {
+    padding: var(--md-spacing-1) var(--md-spacing-4);
+    font-size: var(--md-typescale-body-small);
+    color: var(--md-on-surface-variant);
+    margin-top: var(--md-spacing-1);
+}
+
+/* Button Group */
+.button-group {
+    display: flex;
+    gap: var(--md-spacing-3);
+    margin-top: var(--md-spacing-4);
+}
+
+/* Token List */
+.token-list {
+    margin-top: var(--md-spacing-4);
+}
+
+.token-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--md-spacing-4);
+    background-color: var(--md-surface-container-high);
+    border-radius: var(--md-radius-md);
+    margin-bottom: var(--md-spacing-3);
+}
+
+.token-info {
+    flex: 1;
+}
+
+.token-device {
+    font-size: var(--md-typescale-body-large);
+    color: var(--md-on-surface);
+    font-weight: var(--md-weight-medium);
+    margin-bottom: var(--md-spacing-1);
+}
+
+.token-meta {
+    font-size: var(--md-typescale-body-small);
+    color: var(--md-on-surface-variant);
+}
+
+.token-actions {
+    display: flex;
+    gap: var(--md-spacing-2);
+}
+
+.token-value {
+    font-family: 'Courier New', monospace;
+    font-size: var(--md-typescale-body-small);
+    color: var(--md-on-surface-variant);
+    background-color: var(--md-surface-container-highest);
+    padding: var(--md-spacing-2) var(--md-spacing-3);
+    border-radius: var(--md-radius-sm);
+    margin-top: var(--md-spacing-2);
+    word-break: break-all;
+    max-width: 400px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: var(--md-spacing-6);
+    color: var(--md-on-surface-variant);
+    font-size: var(--md-typescale-body-medium);
+}
+
+/* Loading State */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--md-outline);
+    border-top: 2px solid var(--md-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .settings-container {
+        padding: var(--md-spacing-4);
+    }
+
+    .settings-section {
+        padding: var(--md-spacing-4);
+    }
+
+    .settings-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--md-spacing-3);
+    }
+
+    .button-group {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .button-group button {
+        width: 100%;
+    }
+
+    .token-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--md-spacing-3);
+    }
+
+    .token-actions {
+        width: 100%;
+    }
+
+    .token-actions button {
+        flex: 1;
+    }
+}
+{{end}}
+
+{{define "title"}}Настройки PWA - PhotoCore{{end}}
+
+{{define "content"}}
+<div class="settings-container">
+    <div class="settings-header">
+        <h1 class="settings-title">Настройки PWA</h1>
+        <p class="settings-subtitle">Управление оффлайн-режимом, токенами и уведомлениями</p>
+    </div>
+
+    <!-- Оффлайн избранное -->
+    <div class="settings-section">
+        <h2 class="settings-section-title">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>
+            Оффлайн избранное
+        </h2>
+
+        <div class="settings-item">
+            <div class="settings-item-info">
+                <div class="settings-item-label">Размер кэша</div>
+                <div class="settings-item-description" id="cache-size">Вычисление...</div>
+            </div>
+        </div>
+
+        <div class="settings-item">
+            <div class="settings-item-info">
+                <div class="settings-item-label">Закэшировано фото</div>
+                <div class="settings-item-description" id="cached-count">Вычисление...</div>
+            </div>
+        </div>
+
+        <div class="settings-item">
+            <div class="settings-item-info">
+                <div class="settings-item-label">Лимит фото для оффлайн</div>
+                <div class="settings-item-description">Максимальное количество избранных фото</div>
+            </div>
+            <div class="md-select" id="offline-limit-select">
+                <button type="button" class="md-select-field" onclick="toggleSelect('offline-limit-select')">
+                    <span class="md-select-value" id="offline-limit-value">100 фото</span>
+                    <svg class="md-select-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M7 10l5 5 5-5z"/>
+                    </svg>
+                </button>
+                <div class="md-select-menu">
+                    <div class="md-select-option" data-value="50" onclick="selectOption('offline-limit-select', '50', '50 фото')">50 фото</div>
+                    <div class="md-select-option selected" data-value="100" onclick="selectOption('offline-limit-select', '100', '100 фото')">100 фото</div>
+                    <div class="md-select-option" data-value="200" onclick="selectOption('offline-limit-select', '200', '200 фото')">200 фото</div>
+                    <div class="md-select-option" data-value="-1" onclick="selectOption('offline-limit-select', '-1', 'Все избранное')">Все избранное</div>
+                </div>
+                <input type="hidden" id="offline-limit" value="100">
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="md-button md-filled" onclick="cacheOfflineFavorites()">
+                Закэшировать избранное
+            </button>
+            <button class="md-button md-outlined" onclick="clearOfflineCache()">
+                Очистить кэш
+            </button>
+        </div>
+    </div>
+
+    <!-- Автозагрузка -->
+    <div class="settings-section">
+        <h2 class="settings-section-title">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+            Автозагрузка
+        </h2>
+
+        <div class="settings-item">
+            <div class="settings-item-info">
+                <div class="settings-item-label">Включить автозагрузку</div>
+                <div class="settings-item-description">Автоматическая загрузка новых фото</div>
+            </div>
+            <label class="md-switch">
+                <input type="checkbox" id="auto-upload-enabled" onchange="toggleAutoUpload(this.checked)">
+                <span class="md-switch-track">
+                    <span class="md-switch-thumb"></span>
+                </span>
+            </label>
+        </div>
+
+        <div class="settings-item">
+            <div class="settings-item-info">
+                <div class="settings-item-label">Только при WiFi</div>
+                <div class="settings-item-description">Загружать только при WiFi соединении</div>
+            </div>
+            <label class="md-switch">
+                <input type="checkbox" id="wifi-only" onchange="toggleWifiOnly(this.checked)">
+                <span class="md-switch-track">
+                    <span class="md-switch-thumb"></span>
+                </span>
+            </label>
+        </div>
+    </div>
+
+    <!-- API Токены -->
+    <div class="settings-section">
+        <h2 class="settings-section-title">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+            API Токены
+        </h2>
+
+        <div class="settings-item">
+            <div class="settings-item-info">
+                <div class="settings-item-label">Токены доступа</div>
+                <div class="settings-item-description">Используются для доступа из мобильных приложений</div>
+            </div>
+        </div>
+
+        <div id="token-list" class="token-list">
+            <div class="empty-state">
+                <div class="loading-spinner"></div>
+                <p style="margin-top: var(--md-spacing-3);">Загрузка токенов...</p>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="md-button md-filled" onclick="showGenerateTokenDialog()">
+                Создать новый токен
+            </button>
+        </div>
+    </div>
+
+    <!-- Уведомления -->
+    <div class="settings-section">
+        <h2 class="settings-section-title">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+            Уведомления
+        </h2>
+
+        <div class="settings-item">
+            <div class="settings-item-info">
+                <div class="settings-item-label">Push-уведомления</div>
+                <div class="settings-item-description" id="notification-status">Не включены</div>
+            </div>
+            <label class="md-switch">
+                <input type="checkbox" id="notifications-enabled" onchange="toggleNotifications(this.checked)">
+                <span class="md-switch-track">
+                    <span class="md-switch-thumb"></span>
+                </span>
+            </label>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Token Dialog (простой prompt для демонстрации) -->
+<script>
+// === MD3 Custom Select Functions ===
+function toggleSelect(selectId) {
+    const selectEl = document.getElementById(selectId);
+    const isActive = selectEl.classList.contains('active');
+
+    // Close all other selects
+    document.querySelectorAll('.md-select.active').forEach(el => {
+        if (el.id !== selectId) {
+            el.classList.remove('active');
+        }
+    });
+
+    // Toggle this select
+    if (isActive) {
+        selectEl.classList.remove('active');
+    } else {
+        selectEl.classList.add('active');
+    }
+}
+
+function selectOption(selectId, value, label) {
+    const selectEl = document.getElementById(selectId);
+    const valueEl = selectEl.querySelector('.md-select-value');
+    const hiddenInput = selectEl.querySelector('input[type="hidden"]');
+
+    // Update value display
+    valueEl.textContent = label;
+
+    // Update hidden input
+    if (hiddenInput) {
+        hiddenInput.value = value;
+    }
+
+    // Update selected state on options
+    selectEl.querySelectorAll('.md-select-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+    selectEl.querySelector(`.md-select-option[data-value="${value}"]`)?.classList.add('selected');
+
+    // Close dropdown
+    selectEl.classList.remove('active');
+
+    // Update settings if this is offline-limit
+    if (selectId === 'offline-limit-select') {
+        settings.offlineLimit = parseInt(value);
+        saveSettings();
+    }
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.md-select')) {
+        document.querySelectorAll('.md-select.active').forEach(el => {
+            el.classList.remove('active');
+        });
+    }
+});
+
+// Close dropdowns on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.md-select.active').forEach(el => {
+            el.classList.remove('active');
+        });
+    }
+});
+
+// === Settings State ===
+let settings = {
+    offlineLimit: 100,
+    autoUploadEnabled: false,
+    wifiOnly: true,
+    notificationsEnabled: false
+};
+
+// === Initialization ===
+document.addEventListener('DOMContentLoaded', () => {
+    loadSettings();
+    updateCacheStats();
+    loadTokens();
+    checkNotificationPermission();
+});
+
+// === Settings Management ===
+function loadSettings() {
+    const saved = localStorage.getItem('pwa_settings');
+    if (saved) {
+        settings = { ...settings, ...JSON.parse(saved) };
+    }
+
+    // Apply to UI - Custom select
+    const limitValue = settings.offlineLimit;
+    const limitLabel = limitValue === 50 ? '50 фото' :
+                       limitValue === 100 ? '100 фото' :
+                       limitValue === 200 ? '200 фото' :
+                       limitValue === -1 ? 'Все избранное' : '100 фото';
+
+    document.getElementById('offline-limit').value = limitValue;
+    document.getElementById('offline-limit-value').textContent = limitLabel;
+
+    // Update selected state
+    document.querySelectorAll('#offline-limit-select .md-select-option').forEach(opt => {
+        opt.classList.remove('selected');
+        if (opt.getAttribute('data-value') == limitValue) {
+            opt.classList.add('selected');
+        }
+    });
+
+    // Other settings
+    document.getElementById('auto-upload-enabled').checked = settings.autoUploadEnabled;
+    document.getElementById('wifi-only').checked = settings.wifiOnly;
+    document.getElementById('notifications-enabled').checked = settings.notificationsEnabled;
+}
+
+function saveSettings() {
+    localStorage.setItem('pwa_settings', JSON.stringify(settings));
+}
+
+// === Cache Management ===
+async function updateCacheStats() {
+    try {
+        if (!('caches' in window)) {
+            document.getElementById('cache-size').textContent = 'Не поддерживается';
+            document.getElementById('cached-count').textContent = 'Не поддерживается';
+            return;
+        }
+
+        const cache = await caches.open('photocore-favorites-v1');
+        const keys = await cache.keys();
+
+        // Подсчет размера (приблизительно)
+        let totalSize = 0;
+        const imageKeys = keys.filter(key => key.url.includes('/media/') && key.url.includes('/thumb'));
+
+        document.getElementById('cached-count').textContent = `${imageKeys.length} фото`;
+
+        // Оценка размера: ~200KB на превью
+        const estimatedSize = imageKeys.length * 200 * 1024;
+        document.getElementById('cache-size').textContent = formatBytes(estimatedSize);
+    } catch (err) {
+        console.error('Failed to get cache stats:', err);
+        document.getElementById('cache-size').textContent = 'Ошибка';
+        document.getElementById('cached-count').textContent = 'Ошибка';
+    }
+}
+
+async function cacheOfflineFavorites() {
+    try {
+        const limit = parseInt(document.getElementById('offline-limit').value);
+        settings.offlineLimit = limit;
+        saveSettings();
+
+        showToast('Загрузка избранного для оффлайн...', 'info');
+
+        // Получаем список избранного
+        const response = await fetch(`/api/favorites?limit=${limit > 0 ? limit : 10000}`);
+        if (!response.ok) throw new Error('Failed to fetch favorites');
+
+        const data = await response.json();
+        const mediaIds = data.media.map(m => m.id);
+
+        if (mediaIds.length === 0) {
+            showToast('Нет избранных фото для кэширования', 'warning');
+            return;
+        }
+
+        // Отправляем сообщение Service Worker
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+                type: 'CACHE_FAVORITES',
+                mediaIds: mediaIds
+            });
+
+            showToast(`Кэширование ${mediaIds.length} фото...`, 'success');
+
+            // Обновляем статистику через 2 секунды
+            setTimeout(() => {
+                updateCacheStats();
+            }, 2000);
+        } else {
+            showToast('Service Worker не активен', 'error');
+        }
+    } catch (err) {
+        console.error('Failed to cache favorites:', err);
+        showToast('Ошибка кэширования: ' + err.message, 'error');
+    }
+}
+
+async function clearOfflineCache() {
+    try {
+        if (!('caches' in window)) {
+            showToast('Cache API не поддерживается', 'error');
+            return;
+        }
+
+        const confirmed = confirm('Очистить весь оффлайн кэш избранного?');
+        if (!confirmed) return;
+
+        await caches.delete('photocore-favorites-v1');
+        await caches.open('photocore-favorites-v1'); // Создаем заново
+
+        showToast('Кэш очищен', 'success');
+        updateCacheStats();
+    } catch (err) {
+        console.error('Failed to clear cache:', err);
+        showToast('Ошибка очистки кэша: ' + err.message, 'error');
+    }
+}
+
+// === Auto Upload ===
+function toggleAutoUpload(enabled) {
+    settings.autoUploadEnabled = enabled;
+    saveSettings();
+    showToast(enabled ? 'Автозагрузка включена' : 'Автозагрузка выключена', 'info');
+}
+
+function toggleWifiOnly(enabled) {
+    settings.wifiOnly = enabled;
+    saveSettings();
+}
+
+// === API Tokens ===
+async function loadTokens() {
+    try {
+        const response = await fetch('/api/tokens');
+        if (!response.ok) throw new Error('Failed to fetch tokens');
+
+        const tokens = await response.json();
+        renderTokens(tokens);
+    } catch (err) {
+        console.error('Failed to load tokens:', err);
+        document.getElementById('token-list').innerHTML = `
+            <div class="empty-state">
+                <p>Ошибка загрузки токенов: ${err.message}</p>
+            </div>
+        `;
+    }
+}
+
+function renderTokens(tokens) {
+    const container = document.getElementById('token-list');
+
+    if (!tokens || tokens.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <p>Нет активных токенов</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = tokens.map(token => `
+        <div class="token-item">
+            <div class="token-info">
+                <div class="token-device">${escapeHtml(token.device_name || 'Неизвестное устройство')}</div>
+                <div class="token-meta">
+                    Создан: ${formatDate(token.created_at)} |
+                    Истекает: ${formatDate(token.expires_at)}
+                </div>
+                <div class="token-value" style="display: none;" id="token-${token.token}">
+                    ${token.token}
+                </div>
+            </div>
+            <div class="token-actions">
+                <button class="md-button md-text" onclick="toggleTokenVisibility('${token.token}')">
+                    Показать
+                </button>
+                <button class="md-button md-text" style="color: var(--md-error);" onclick="revokeToken('${token.token}')">
+                    Отозвать
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function toggleTokenVisibility(token) {
+    const el = document.getElementById('token-' + token);
+    if (el.style.display === 'none') {
+        el.style.display = 'block';
+        event.target.textContent = 'Скрыть';
+    } else {
+        el.style.display = 'none';
+        event.target.textContent = 'Показать';
+    }
+}
+
+async function showGenerateTokenDialog() {
+    const deviceName = prompt('Введите название устройства (например, "iPhone 13"):');
+    if (!deviceName || deviceName.trim() === '') return;
+
+    try {
+        const response = await fetch('/api/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_name: deviceName.trim() })
+        });
+
+        if (!response.ok) throw new Error('Failed to generate token');
+
+        const token = await response.json();
+
+        showToast('Токен создан успешно', 'success');
+
+        // Показываем токен в alert (в реальном приложении - модальное окно)
+        alert(`Токен создан:\n\n${token.token}\n\nСохраните его, он больше не будет показан!`);
+
+        loadTokens();
+    } catch (err) {
+        console.error('Failed to generate token:', err);
+        showToast('Ошибка создания токена: ' + err.message, 'error');
+    }
+}
+
+async function revokeToken(token) {
+    const confirmed = confirm('Отозвать этот токен? Устройство потеряет доступ.');
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/api/tokens/${token}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Failed to revoke token');
+
+        showToast('Токен отозван', 'success');
+        loadTokens();
+    } catch (err) {
+        console.error('Failed to revoke token:', err);
+        showToast('Ошибка отзыва токена: ' + err.message, 'error');
+    }
+}
+
+// === Notifications ===
+function checkNotificationPermission() {
+    if (!('Notification' in window)) {
+        document.getElementById('notification-status').textContent = 'Не поддерживаются';
+        document.getElementById('notifications-enabled').disabled = true;
+        return;
+    }
+
+    const permission = Notification.permission;
+    if (permission === 'granted') {
+        document.getElementById('notification-status').textContent = 'Включены';
+        settings.notificationsEnabled = true;
+        document.getElementById('notifications-enabled').checked = true;
+    } else if (permission === 'denied') {
+        document.getElementById('notification-status').textContent = 'Заблокированы';
+        document.getElementById('notifications-enabled').disabled = true;
+    } else {
+        document.getElementById('notification-status').textContent = 'Не включены';
+    }
+}
+
+async function toggleNotifications(enabled) {
+    if (!enabled) {
+        settings.notificationsEnabled = false;
+        saveSettings();
+        document.getElementById('notification-status').textContent = 'Не включены';
+        return;
+    }
+
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            settings.notificationsEnabled = true;
+            saveSettings();
+            document.getElementById('notification-status').textContent = 'Включены';
+            showToast('Уведомления включены', 'success');
+        } else {
+            document.getElementById('notifications-enabled').checked = false;
+            document.getElementById('notification-status').textContent = 'Отклонены';
+            showToast('Разрешение на уведомления отклонено', 'error');
+        }
+    } catch (err) {
+        console.error('Failed to request notification permission:', err);
+        document.getElementById('notifications-enabled').checked = false;
+        showToast('Ошибка запроса разрешения', 'error');
+    }
+}
+
+// === Utility Functions ===
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showToast(message, type = 'info') {
+    // Используем глобальную функцию showToast если она определена
+    if (window.showToast) {
+        window.showToast(message, type);
+    } else {
+        console.log(`[${type}] ${message}`);
+        alert(message);
+    }
+}
+</script>
+{{end}}

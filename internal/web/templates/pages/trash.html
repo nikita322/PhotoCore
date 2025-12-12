@@ -210,7 +210,10 @@
         </h1>
         {{if .TrashItems}}
         <div class="trash-actions">
-            <button class="btn btn-danger" onclick="showEmptyConfirm()">Очистить корзину</button>
+            <button class="md-button md-button-outlined" style="color: var(--md-error); border-color: var(--md-error);" onclick="showEmptyConfirm()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                Очистить корзину
+            </button>
         </div>
         {{end}}
     </div>
@@ -222,22 +225,22 @@
 
     <div class="grid">
         {{range .TrashItems}}
-        <div class="trash-card" data-id="{{.ID}}" {{if .DuplicateOf}}onclick="showCompare('{{.ID}}', '{{.DuplicateOf}}', event)"{{end}}>
-            <img src="/media/{{.ID}}/thumb/small" alt="{{.Filename}}" loading="lazy">
+        <div class="md-card md-card-elevated trash-card" data-id="{{.ID}}" style="position: relative; overflow: visible;" {{if .DuplicateOf}}onclick="showCompare('{{.ID}}', '{{.DuplicateOf}}', event)"{{end}}>
+            <img src="/media/{{.ID}}/thumb/small" alt="{{.Filename}}" loading="lazy" style="width: 100%; aspect-ratio: 1; object-fit: cover; opacity: 0.7; transition: opacity var(--transition-fast);">
             {{if .DuplicateOf}}
-            <span class="duplicate-badge">Дубликат</span>
+            <span class="md-chip duplicate-badge" style="position: absolute; top: 8px; left: 8px; background: var(--md-warning); color: var(--md-on-tertiary); height: 20px; padding: 0 6px; font-size: 11px; font-weight: bold;">Дубликат</span>
             {{end}}
-            <div class="trash-actions-card">
-                <button class="action-btn restore-btn" onclick="restoreMedia('{{.ID}}', event)" title="Восстановить">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/></svg>
+            <div class="trash-actions-card" style="position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; transition: opacity var(--transition-fast);">
+                <button class="md-icon-button restore-btn" style="background: var(--md-tertiary); color: var(--md-on-tertiary);" onclick="restoreMedia('{{.ID}}', event)" title="Восстановить">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/></svg>
                 </button>
-                <button class="action-btn delete-btn" onclick="deleteMedia('{{.ID}}', event)" title="Удалить навсегда">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                <button class="md-icon-button delete-btn" style="background: var(--md-error); color: var(--md-on-error);" onclick="deleteMedia('{{.ID}}', event)" title="Удалить навсегда">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
                 </button>
             </div>
-            <div class="trash-overlay">
-                <div class="trash-filename">{{.Filename}}</div>
-                <div class="trash-days {{if le .DaysRemaining 3}}warning{{else if le .DaysRemaining 7}}warning{{else}}ok{{end}}">
+            <div class="trash-overlay" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, var(--md-scrim-heavy)); padding: var(--spacing-md) var(--spacing-sm) var(--spacing-sm); border-radius: 0 0 var(--radius-md) var(--radius-md);">
+                <div class="trash-filename" style="font-size: 0.75rem; color: var(--md-white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">{{.Filename}}</div>
+                <div class="trash-days {{if le .DaysRemaining 3}}warning{{else if le .DaysRemaining 7}}warning{{else}}ok{{end}}" style="font-size: 0.7rem;">
                     {{if le .DaysRemaining 0}}Будет удалено сегодня{{else}}Осталось {{.DaysRemaining}} дн.{{end}}
                 </div>
             </div>
@@ -272,8 +275,8 @@
             </div>
         </div>
         <div class="compare-actions">
-            <button class="btn btn-secondary" onclick="hideCompare()">Закрыть</button>
-            <button class="btn btn-success" id="replaceBtn" onclick="replaceDuplicate()">Заменить оригинал</button>
+            <button class="md-button md-button-text" onclick="hideCompare()">Закрыть</button>
+            <button class="md-button md-button-filled" id="replaceBtn" style="background-color: var(--md-tertiary); color: var(--md-on-tertiary);" onclick="replaceDuplicate()">Заменить оригинал</button>
         </div>
     </div>
 </div>
@@ -283,8 +286,8 @@
         <h3>Очистить корзину?</h3>
         <p>Все файлы будут удалены безвозвратно. Это действие нельзя отменить.</p>
         <div class="confirm-buttons">
-            <button class="btn btn-secondary" onclick="hideEmptyConfirm()">Отмена</button>
-            <button class="btn btn-danger" onclick="emptyTrash()">Удалить всё</button>
+            <button class="md-button md-button-text" onclick="hideEmptyConfirm()">Отмена</button>
+            <button class="md-button md-button-filled" style="background-color: var(--md-error); color: var(--md-on-error);" onclick="emptyTrash()">Удалить всё</button>
         </div>
     </div>
 </div>

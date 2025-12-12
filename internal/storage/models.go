@@ -82,6 +82,17 @@ type Session struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
+// APIToken представляет токен для API доступа
+type APIToken struct {
+	Token      string    `json:"token"`
+	UserID     string    `json:"user_id"`
+	Username   string    `json:"username"`
+	Role       string    `json:"role"`
+	CreatedAt  time.Time `json:"created_at"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	DeviceName string    `json:"device_name"`
+}
+
 // Directory представляет директорию в галерее
 type Directory struct {
 	Path       string `json:"path"`

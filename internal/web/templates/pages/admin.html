@@ -8,7 +8,10 @@
 <main class="main-centered">
     <div class="page-header">
         <h1 class="page-title">Управление пользователями</h1>
-        <button class="btn btn-primary" onclick="showCreateModal()">+ Добавить пользователя</button>
+        <button class="md-button md-button-filled" onclick="showCreateModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Добавить пользователя
+        </button>
     </div>
 
     <div class="card">
@@ -151,8 +154,8 @@
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeModal('create-modal')">Отмена</button>
-            <button class="btn btn-primary" onclick="createUser()">Создать</button>
+            <button class="md-button md-button-text" onclick="closeModal('create-modal')">Отмена</button>
+            <button class="md-button md-button-filled" onclick="createUser()">Создать</button>
         </div>
     </div>
 </div>
@@ -188,8 +191,8 @@
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeModal('edit-modal')">Отмена</button>
-            <button class="btn btn-primary" onclick="updateUser()">Сохранить</button>
+            <button class="md-button md-button-text" onclick="closeModal('edit-modal')">Отмена</button>
+            <button class="md-button md-button-filled" onclick="updateUser()">Сохранить</button>
         </div>
     </div>
 </div>
@@ -246,8 +249,8 @@ function renderUsers() {
                 <td class="date-cell">${createdAt}</td>
                 <td class="date-cell">${lastLogin}</td>
                 <td class="actions-cell">
-                    <button class="btn btn-secondary btn-sm" onclick="showEditModal('${escapeHtml(user.username)}')">Изменить</button>
-                    ${isSelf ? '' : `<button class="btn btn-danger btn-sm" onclick="deleteUser('${escapeHtml(user.username)}')">Удалить</button>`}
+                    <button class="md-button md-button-outlined" style="padding: 0.5rem 1rem; height: auto;" onclick="showEditModal('${escapeHtml(user.username)}')">Изменить</button>
+                    ${isSelf ? '' : `<button class="md-button md-button-outlined" style="padding: 0.5rem 1rem; height: auto; color: var(--md-error); border-color: var(--md-error);" onclick="deleteUser('${escapeHtml(user.username)}')">Удалить</button>`}
                 </td>
             </tr>
         `;

@@ -75,6 +75,8 @@ func NewServer(
 		"login.html",
 		"viewer.html",
 		"trash.html",
+		"upload.html",
+		"pwa_settings.html",
 	}
 
 	// Partials (фрагменты для HTMX)
@@ -157,6 +159,8 @@ func (s *Server) setupRoutes() {
 		r.Get("/", h.Index)
 		r.Get("/gallery", h.Timeline) // Главная галерея - timeline view
 		r.Get("/view/{id}", h.ViewMedia)
+		r.Get("/upload", h.UploadPage)
+		r.Get("/pwa/settings", h.PWASettingsPage)
 
 		// Новые страницы
 		r.Get("/search", h.SearchPage)
@@ -234,6 +238,14 @@ func (s *Server) setupRoutes() {
 		r.Post("/api/users", h.CreateUser)
 		r.Put("/api/users/{username}", h.UpdateUser)
 		r.Delete("/api/users/{username}", h.DeleteUser)
+
+		// Upload API
+		r.Post("/api/upload", h.UploadMedia)
+
+		// API Token Management
+		r.Post("/api/tokens", h.GenerateAPIToken)
+		r.Get("/api/tokens", h.ListAPITokens)
+		r.Delete("/api/tokens/{token}", h.RevokeAPIToken)
 	})
 
 	s.router = r

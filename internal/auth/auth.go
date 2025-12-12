@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -208,8 +209,35 @@ func (a *Auth) ValidateSession(sessionID string) (*storage.Session, error) {
 }
 
 // Middleware проверяет аутентификацию для защищенных маршрутов
+// Поддерживает как cookie-based сессии, так и Bearer токены
 func (a *Auth) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Сначала проверяем Authorization header (для API и PWA)
+		authHeader := r.Header.Get("Authorization")
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			token := strings.TrimPrefix(authHeader, "Bearer ")
+
+			apiToken, err := a.ValidateAPIToken(token)
+			if err == nil && apiToken != nil {
+				// Создаем псевдо-сессию из токена
+				session := &storage.Session{
+					ID:       apiToken.Token,
+					UserID:   apiToken.UserID,
+					Username: apiToken.Username,
+					Role:     apiToken.Role,
+				}
+
+				ctx := context.WithValue(r.Context(), SessionKey, session)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+
+			// Bearer токен невалидный
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Fallback на cookie-based аутентификацию
 		cookie, err := r.Cookie("session")
 		if err != nil {
 			http.Redirect(w, r, "/login", http.StatusFound)
@@ -260,4 +288,48 @@ func generateID() string {
 	bytes := make([]byte, 16)
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)
+}
+
+// === API Token Authentication ===
+
+// GenerateAPIToken создает токен для мобильного клиента
+func (a *Auth) GenerateAPIToken(userID, username, role, deviceName string) (*storage.APIToken, error) {
+	tokenBytes := make([]byte, 32)
+	if _, err := rand.Read(tokenBytes); err != nil {
+		return nil, err
+	}
+
+	token := &storage.APIToken{
+		Token:      hex.EncodeToString(tokenBytes),
+		UserID:     userID,
+		Username:   username,
+		Role:       role,
+		DeviceName: deviceName,
+		CreatedAt:  time.Now(),
+		ExpiresAt:  time.Now().AddDate(0, 6, 0), // 6 месяцев
+	}
+
+	if err := a.store.SaveAPIToken(token); err != nil {
+		return nil, err
+	}
+
+	return token, nil
+}
+
+// ValidateAPIToken проверяет токен
+func (a *Auth) ValidateAPIToken(token string) (*storage.APIToken, error) {
+	apiToken, err := a.store.GetAPIToken(token)
+	if err != nil {
+		return nil, err
+	}
+	if apiToken == nil {
+		return nil, nil
+	}
+
+	if time.Now().After(apiToken.ExpiresAt) {
+		a.store.DeleteAPIToken(token)
+		return nil, nil
+	}
+
+	return apiToken, nil
 }

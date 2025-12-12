@@ -16,6 +16,8 @@
     display: flex;
     align-items: center;
     gap: var(--spacing-md);
+    flex: 1;
+    min-width: 0;
 }
 .back-btn {
     display: flex;
@@ -24,6 +26,7 @@
     color: var(--text-secondary);
     text-decoration: none;
     transition: color var(--transition-fast);
+    flex-shrink: 0;
 }
 .back-btn:hover {
     color: var(--text-primary);
@@ -51,6 +54,27 @@
     object-fit: contain;
     border-radius: var(--radius-sm);
 }
+
+/* Mobile adaptations */
+@media (max-width: 600px) {
+    .viewer-header {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    .header-left {
+        gap: var(--spacing-sm);
+    }
+    .back-btn-text {
+        display: none;
+    }
+    .back-btn {
+        gap: 0;
+        padding: var(--spacing-xs);
+    }
+    .filename {
+        max-width: 150px;
+        font-size: 0.875rem;
+    }
+}
 {{end}}
 
 {{define "content"}}
@@ -60,7 +84,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
             </svg>
-            Назад
+            <span class="back-btn-text">Назад</span>
         </a>
         <span class="filename">{{.Media.Filename}}</span>
     </div>
@@ -68,7 +92,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/>
         </svg>
-        Скачать
+        <span class="back-btn-text">Скачать</span>
     </a>
 </header>
 

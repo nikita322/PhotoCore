@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -1741,6 +1742,35 @@ func (h *Handlers) jsonError(w http.ResponseWriter, message string, code int) {
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
+func (h *Handlers) getMimeType(ext string) string {
+	mimeTypes := map[string]string{
+		".jpg":  "image/jpeg",
+		".jpeg": "image/jpeg",
+		".png":  "image/png",
+		".gif":  "image/gif",
+		".webp": "image/webp",
+		".heic": "image/heic",
+		".mp4":  "video/mp4",
+		".mov":  "video/quicktime",
+		".avi":  "video/x-msvideo",
+		".mkv":  "video/x-matroska",
+		".webm": "video/webm",
+		".raw":  "image/x-raw",
+		".cr2":  "image/x-canon-cr2",
+		".cr3":  "image/x-canon-cr3",
+		".nef":  "image/x-nikon-nef",
+		".arw":  "image/x-sony-arw",
+		".dng":  "image/x-adobe-dng",
+		".orf":  "image/x-olympus-orf",
+		".raf":  "image/x-fuji-raf",
+		".rw2":  "image/x-panasonic-rw2",
+	}
+	if mime, ok := mimeTypes[ext]; ok {
+		return mime
+	}
+	return "application/octet-stream"
+}
+
 const placeholderSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
 <defs>
 <linearGradient id="shimmer" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -1775,6 +1805,302 @@ const placeholderSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="300" heig
 <circle cx="-8" cy="-5" r="4" opacity="0.4"/>
 </g>
 </svg>`
+
+// === Upload Page ===
+
+// UploadPage отображает страницу загрузки
+func (h *Handlers) UploadPage(w http.ResponseWriter, r *http.Request) {
+	data := h.baseData(r)
+
+	// Определяем, мобильный ли это браузер (для camera capture)
+	ua := r.Header.Get("User-Agent")
+	isMobile := strings.Contains(strings.ToLower(ua), "mobile") ||
+		strings.Contains(strings.ToLower(ua), "android") ||
+		strings.Contains(strings.ToLower(ua), "iphone")
+
+	data["CanCapture"] = isMobile
+
+	h.render(w, "upload.html", data)
+}
+
+// PWASettingsPage отображает страницу настроек PWA
+func (h *Handlers) PWASettingsPage(w http.ResponseWriter, r *http.Request) {
+	data := h.baseData(r)
+	h.render(w, "pwa_settings.html", data)
+}
+
+// === Upload API ===
+
+// UploadMedia обрабатывает загрузку медиа-файлов через API
+func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
+	// Все авторизованные пользователи могут загружать
+	session := auth.GetSession(r)
+	if session == nil {
+		h.jsonError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Ограничиваем размер до 100MB
+	err := r.ParseMultipartForm(100 << 20)
+	if err != nil {
+		h.jsonError(w, "Failed to parse form: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	files := r.MultipartForm.File["files"]
+	if len(files) == 0 {
+		h.jsonError(w, "No files provided", http.StatusBadRequest)
+		return
+	}
+
+	// Создаем map расширений для быстрой проверки
+	extensions := make(map[string]storage.MediaType)
+	for _, ext := range h.cfg.Scan.Extensions.Images {
+		extensions[strings.ToLower(ext)] = storage.MediaTypeImage
+	}
+	for _, ext := range h.cfg.Scan.Extensions.Videos {
+		extensions[strings.ToLower(ext)] = storage.MediaTypeVideo
+	}
+	for _, ext := range h.cfg.Scan.Extensions.Raw {
+		extensions[strings.ToLower(ext)] = storage.MediaTypeRaw
+	}
+
+	// Определяем целевую директорию
+	now := time.Now()
+	baseDir := h.cfg.Storage.MediaPaths[0]
+	targetDir := filepath.Join(baseDir, "upload", now.Format("2006"), now.Format("01"))
+
+	// Создаем директорию если её нет
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		h.jsonError(w, "Failed to create upload directory: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var uploaded int
+	var errors int
+	var mediaIDs []string
+	var messages []string
+
+	for _, fileHeader := range files {
+		// Проверяем расширение
+		ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+		mediaType, ok := extensions[ext]
+		if !ok {
+			messages = append(messages, "Skipped "+fileHeader.Filename+": unsupported file type")
+			errors++
+			continue
+		}
+
+		// Генерируем уникальное имя файла
+		timestamp := now.Format("20060102_150405")
+		uniqueFilename := timestamp + "_" + fileHeader.Filename
+		targetPath := filepath.Join(targetDir, uniqueFilename)
+
+		// Открываем загруженный файл
+		src, err := fileHeader.Open()
+		if err != nil {
+			messages = append(messages, "Failed to open "+fileHeader.Filename+": "+err.Error())
+			errors++
+			continue
+		}
+
+		// Создаем целевой файл
+		dst, err := os.Create(targetPath)
+		if err != nil {
+			src.Close()
+			messages = append(messages, "Failed to create "+uniqueFilename+": "+err.Error())
+			errors++
+			continue
+		}
+
+		// Копируем содержимое
+		_, err = io.Copy(dst, src)
+		src.Close()
+		dst.Close()
+
+		if err != nil {
+			os.Remove(targetPath)
+			messages = append(messages, "Failed to save "+fileHeader.Filename+": "+err.Error())
+			errors++
+			continue
+		}
+
+		// Получаем информацию о файле
+		fileInfo, err := os.Stat(targetPath)
+		if err != nil {
+			os.Remove(targetPath)
+			messages = append(messages, "Failed to stat "+uniqueFilename+": "+err.Error())
+			errors++
+			continue
+		}
+
+		// Создаем запись media
+		relPath := filepath.Join("upload", now.Format("2006"), now.Format("01"), uniqueFilename)
+		mediaItem := &storage.Media{
+			ID:         storage.GenerateID(targetPath),
+			Path:       targetPath,
+			RelPath:    relPath,
+			Dir:        filepath.Dir(relPath),
+			Filename:   uniqueFilename,
+			Ext:        ext,
+			Type:       mediaType,
+			MimeType:   h.getMimeType(ext),
+			Size:       fileInfo.Size(),
+			ModifiedAt: fileInfo.ModTime(),
+			CreatedAt:  now,
+		}
+
+		// Извлекаем метаданные для изображений
+		if mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw {
+			if err := scanner.ExtractMetadata(targetPath, mediaItem); err != nil {
+				log.Printf("Warning: failed to extract metadata from %s: %v", uniqueFilename, err)
+			}
+		}
+
+		// Вычисляем хеши
+		isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
+		hashes, err := scanner.CalculateHashes(targetPath, isImage)
+		if err != nil {
+			log.Printf("Warning: failed to calculate hashes for %s: %v", uniqueFilename, err)
+		} else {
+			mediaItem.Checksum = hashes.Checksum
+			mediaItem.ImageHash = hashes.ImageHash
+		}
+
+		// Проверяем на дубликаты
+		dupResult, err := h.store.CheckDuplicate(
+			mediaItem.Size,
+			mediaItem.Checksum,
+			mediaItem.ImageHash,
+			isImage,
+			10, // Similarity threshold
+		)
+		if err == nil && dupResult != nil && dupResult.IsDuplicate {
+			// Дубликат - помечаем и переносим в корзину
+			mediaItem.DuplicateOf = dupResult.ExistingID
+			mediaItem.DeletedAt = &now
+			messages = append(messages, "Duplicate detected: "+uniqueFilename+" ("+dupResult.Type+")")
+		}
+
+		// Сохраняем в БД
+		if err := h.store.SaveMedia(mediaItem); err != nil {
+			os.Remove(targetPath)
+			messages = append(messages, "Failed to save to database "+uniqueFilename+": "+err.Error())
+			errors++
+			continue
+		}
+
+		mediaIDs = append(mediaIDs, mediaItem.ID)
+		uploaded++
+
+		// Добавляем в очередь генерации превью
+		if mediaItem.DeletedAt == nil {
+			h.thumbService.QueueAllThumbnails(mediaItem.ID)
+		}
+
+		messages = append(messages, "Uploaded: "+uniqueFilename)
+	}
+
+	// Инвалидируем кэши
+	if uploaded > 0 {
+		h.cache.Clear()
+	}
+
+	h.jsonResponse(w, map[string]interface{}{
+		"uploaded":  uploaded,
+		"errors":    errors,
+		"media_ids": mediaIDs,
+		"messages":  messages,
+	})
+}
+
+// === API Token Management ===
+
+// GenerateAPIToken генерирует новый API токен для пользователя
+func (h *Handlers) GenerateAPIToken(w http.ResponseWriter, r *http.Request) {
+	session := auth.GetSession(r)
+	if session == nil {
+		h.jsonError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req struct {
+		DeviceName string `json:"device_name"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.jsonError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.DeviceName == "" {
+		req.DeviceName = "Unnamed Device"
+	}
+
+	token, err := h.auth.GenerateAPIToken(session.UserID, session.Username, session.Role, req.DeviceName)
+	if err != nil {
+		h.jsonError(w, "Failed to generate token: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	h.jsonResponse(w, token)
+}
+
+// ListAPITokens возвращает список токенов пользователя
+func (h *Handlers) ListAPITokens(w http.ResponseWriter, r *http.Request) {
+	session := auth.GetSession(r)
+	if session == nil {
+		h.jsonError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	tokens, err := h.store.ListUserAPITokens(session.UserID)
+	if err != nil {
+		h.jsonError(w, "Failed to list tokens: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	h.jsonResponse(w, tokens)
+}
+
+// RevokeAPIToken отзывает API токен
+func (h *Handlers) RevokeAPIToken(w http.ResponseWriter, r *http.Request) {
+	session := auth.GetSession(r)
+	if session == nil {
+		h.jsonError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		h.jsonError(w, "Token parameter required", http.StatusBadRequest)
+		return
+	}
+
+	// Проверяем права: токен должен принадлежать пользователю или user должен быть admin
+	if !auth.IsAdmin(session.Role) {
+		apiToken, err := h.store.GetAPIToken(token)
+		if err != nil {
+			h.jsonError(w, "Failed to get token: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if apiToken == nil {
+			h.jsonError(w, "Token not found", http.StatusNotFound)
+			return
+		}
+		if apiToken.UserID != session.UserID {
+			h.jsonError(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+	}
+
+	if err := h.store.DeleteAPIToken(token); err != nil {
+		h.jsonError(w, "Failed to revoke token: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	h.jsonResponse(w, map[string]string{"status": "revoked"})
+}
 
 func generateID() string {
 	b := make([]byte, 16)
