@@ -145,6 +145,15 @@ func (s *Server) setupRoutes() {
 
 	// Статические файлы
 	staticHandler := http.FileServer(http.FS(s.staticFS))
+
+	// Service Worker с правильным scope
+	r.Get("/static/sw.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		w.Header().Set("Service-Worker-Allowed", "/")
+		w.Header().Set("Cache-Control", "no-cache")
+		http.StripPrefix("/static/", staticHandler).ServeHTTP(w, r)
+	})
+
 	r.Handle("/static/*", http.StripPrefix("/static/", staticHandler))
 
 	// Публичные маршруты

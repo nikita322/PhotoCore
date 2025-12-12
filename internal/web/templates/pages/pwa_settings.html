@@ -701,35 +701,16 @@ async function cacheOfflineFavorites() {
         settings.offlineLimit = limit;
         saveSettings();
 
-        showToast('Загрузка избранного для оффлайн...', 'info');
-
-        // Получаем список избранного
-        const response = await fetch(`/api/favorites?limit=${limit > 0 ? limit : 10000}`);
-        if (!response.ok) throw new Error('Failed to fetch favorites');
-
-        const data = await response.json();
-        const mediaIds = data.media.map(m => m.id);
-
-        if (mediaIds.length === 0) {
-            showToast('Нет избранных фото для кэширования', 'warning');
-            return;
-        }
-
-        // Отправляем сообщение Service Worker
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({
-                type: 'CACHE_FAVORITES',
-                mediaIds: mediaIds
-            });
-
-            showToast(`Кэширование ${mediaIds.length} фото...`, 'success');
+        // Используем готовую функцию из PWA модуля
+        if (window.PWA && window.PWA.cacheFavorites) {
+            await window.PWA.cacheFavorites(limit);
 
             // Обновляем статистику через 2 секунды
             setTimeout(() => {
                 updateCacheStats();
             }, 2000);
         } else {
-            showToast('Service Worker не активен', 'error');
+            showToast('PWA модуль не загружен', 'error');
         }
     } catch (err) {
         console.error('Failed to cache favorites:', err);
@@ -739,19 +720,16 @@ async function cacheOfflineFavorites() {
 
 async function clearOfflineCache() {
     try {
-        if (!('caches' in window)) {
-            showToast('Cache API не поддерживается', 'error');
-            return;
-        }
-
         const confirmed = confirm('Очистить весь оффлайн кэш избранного?');
         if (!confirmed) return;
 
-        await caches.delete('photocore-favorites-v1');
-        await caches.open('photocore-favorites-v1'); // Создаем заново
-
-        showToast('Кэш очищен', 'success');
-        updateCacheStats();
+        // Используем готовую функцию из PWA модуля
+        if (window.PWA && window.PWA.clearOfflineCache) {
+            await window.PWA.clearOfflineCache();
+            updateCacheStats();
+        } else {
+            showToast('PWA модуль не загружен', 'error');
+        }
     } catch (err) {
         console.error('Failed to clear cache:', err);
         showToast('Ошибка очистки кэша: ' + err.message, 'error');

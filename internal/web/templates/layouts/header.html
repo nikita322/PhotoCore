@@ -1,4 +1,80 @@
 {{define "header_styles"}}
+/* === OFFLINE TOAST === */
+.offline-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  color: white;
+  padding: 16px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  min-width: 280px;
+  max-width: 400px;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.offline-toast.visible {
+  display: flex;
+}
+
+.offline-toast.online {
+  background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%);
+}
+
+.offline-toast svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.offline-toast-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.offline-toast-text {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.toast-reload-btn {
+  padding: 8px 20px;
+  background: white;
+  color: #37b24d;
+  border: none;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.toast-reload-btn:hover {
+  background: #f0f0f0;
+  transform: scale(1.05);
+}
+
 /* === TOP APP BAR (Material 3) === */
 .md-top-app-bar {
   position: sticky;
@@ -108,6 +184,7 @@
 {{end}}
 
 {{define "header"}}
+<!-- Offline Toast определен в base.html -->
 <header class="header">
     <a href="/gallery" class="logo">
         <img src="/static/images/logo.svg" alt="" class="logo-icon">
@@ -120,7 +197,7 @@
         <a href="/upload" class="nav-link" data-page="upload" style="color: var(--md-tertiary);">Загрузка</a>
         <a href="/map" class="nav-link" data-page="map">Карта</a>
         <a href="/search" class="nav-link" data-page="search">Поиск</a>
-        <a href="/pwa/settings" class="nav-link" data-page="pwa-settings">
+        <a href="/pwa/settings" class="nav-link" data-page="pwa-settings" style="display: none;">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 4px;"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
             PWA
         </a>
@@ -161,7 +238,7 @@
         </div>
         <span class="md-navigation-label">Поиск</span>
     </a>
-    <a href="/pwa/settings" class="md-navigation-item" data-page="pwa-settings">
+    <a href="/pwa/settings" class="md-navigation-item" data-page="pwa-settings" style="display: none;">
         <div class="md-navigation-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
         </div>
@@ -189,6 +266,20 @@
     // Mobile bottom nav
     var navItem = document.querySelector('.md-navigation-item[data-page="' + page + '"]');
     if (navItem) navItem.classList.add('active');
+
+    // Показать вкладку PWA только если приложение установлено как PWA
+    var isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                window.navigator.standalone === true ||
+                document.referrer.includes('android-app://');
+
+    if (isPWA) {
+        var pwaLinks = document.querySelectorAll('[data-page="pwa-settings"]');
+        pwaLinks.forEach(function(link) {
+            link.style.display = '';
+        });
+    }
+
+    // Offline Toast управляется через pwa.js
 })();
 </script>
 {{end}}
