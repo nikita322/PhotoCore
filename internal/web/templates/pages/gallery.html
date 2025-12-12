@@ -144,9 +144,9 @@ body.select-mode .media-card::before {
     left: 0.4rem;
     width: 22px;
     height: 22px;
-    border: 2px solid white;
+    border: 2px solid var(--md-white);
     border-radius: var(--radius-full);
-    background-color: rgba(0,0,0,0.5);
+    background-color: var(--md-scrim-light);
     z-index: 10;
 }
 body.select-mode .media-card.selected::before {
@@ -207,7 +207,7 @@ body.select-mode .media-card.selected::after {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 0, 0, 0.98);
+    background-color: var(--md-scrim-heavy);
     z-index: 1000;
     display: none;
     flex-direction: column;
@@ -218,11 +218,11 @@ body.select-mode .media-card.selected::after {
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem var(--spacing-md);
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--md-scrim-light);
     z-index: 10;
 }
 .lightbox-title {
-    color: white;
+    color: var(--md-white);
     font-size: 0.9rem;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -231,9 +231,9 @@ body.select-mode .media-card.selected::after {
 }
 .lightbox-actions { display: flex; gap: var(--spacing-xs); }
 .lightbox-btn {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--md-state-hover-on-surface);
     border: none;
-    color: white;
+    color: var(--md-white);
     width: 40px;
     height: 40px;
     border-radius: var(--radius-sm);
@@ -244,13 +244,13 @@ body.select-mode .media-card.selected::after {
     justify-content: center;
     transition: all var(--transition-fast);
 }
-.lightbox-btn:hover { background: rgba(255, 255, 255, 0.2); }
-.lightbox-btn.active { color: #ffd700; }
-.lightbox-btn.danger:hover { background: rgba(255, 180, 171, 0.3); color: var(--md-error); }
+.lightbox-btn:hover { background: var(--md-state-pressed-on-surface); }
+.lightbox-btn.active { color: var(--md-favorite); }
+.lightbox-btn.danger:hover { background-color: var(--md-error-container); color: var(--md-error); }
 .lightbox-close {
     background: none;
     border: none;
-    color: white;
+    color: var(--md-white);
     font-size: 1.5rem;
     cursor: pointer;
     padding: var(--spacing-sm);
@@ -278,9 +278,9 @@ body.select-mode .media-card.selected::after {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--md-scrim-light);
     border: none;
-    color: white;
+    color: var(--md-white);
     width: 50px;
     height: 80px;
     cursor: pointer;
@@ -291,13 +291,13 @@ body.select-mode .media-card.selected::after {
     transition: all var(--transition-fast);
     z-index: 5;
 }
-.lightbox-nav:hover { background: rgba(255, 255, 255, 0.2); }
+.lightbox-nav:hover { background: var(--md-state-pressed-on-surface); }
 .lightbox-nav:disabled { opacity: 0.3; cursor: default; }
 .lightbox-nav.prev { left: 0; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 .lightbox-nav.next { right: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
 .lightbox-footer {
     padding: 0.75rem var(--spacing-md);
-    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+    background: linear-gradient(transparent, var(--md-scrim-heavy));
     color: white;
     display: flex;
     justify-content: space-between;

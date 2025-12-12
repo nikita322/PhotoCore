@@ -31,13 +31,13 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(transparent, rgba(0,0,0,0.9));
+    background: linear-gradient(transparent, var(--md-scrim-heavy));
     padding: var(--spacing-md) var(--spacing-sm) var(--spacing-sm);
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 }
 .trash-filename {
     font-size: 0.75rem;
-    color: #fff;
+    color: var(--md-white);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -80,14 +80,14 @@
     transition: background-color var(--transition-fast);
 }
 .restore-btn {
-    background: rgba(125, 217, 144, 0.9);
+    background: var(--md-tertiary);
     color: var(--md-on-tertiary);
 }
 .restore-btn:hover {
     background: var(--md-tertiary);
 }
 .delete-btn {
-    background: rgba(255, 180, 171, 0.9);
+    background: var(--md-error);
     color: var(--md-on-error);
 }
 .delete-btn:hover {
@@ -99,7 +99,7 @@
     top: var(--spacing-sm);
     left: var(--spacing-sm);
     background: var(--md-warning);
-    color: #000;
+    color: var(--md-on-tertiary);
     font-size: 0.65rem;
     font-weight: bold;
     padding: 2px 6px;
@@ -112,7 +112,7 @@
 
 /* Compare modal */
 .compare-modal {
-    background: rgba(0,0,0,0.9);
+    background: var(--md-scrim-heavy);
     z-index: 2000;
 }
 .compare-content {
@@ -206,7 +206,7 @@
                 <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
             </svg>
             Корзина
-            {{if .TrashCount}}<span style="font-size: 0.9rem; color: #888;">({{.TrashCount}})</span>{{end}}
+            {{if .TrashCount}}<span style="font-size: 0.9rem; color: var(--text-muted);">({{.TrashCount}})</span>{{end}}
         </h1>
         {{if .TrashItems}}
         <div class="trash-actions">
