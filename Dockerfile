@@ -17,8 +17,8 @@ ENV GOCACHE=/go-cache
 ENV GOMODCACHE=/go-cache/mod
 ENV PATH="/root/go/bin:${PATH}"
 
-# Copy air configuration
-COPY .air.docker.toml /src/.air.toml
+# Copy air configuration to /root (not /src, because /src will be mounted)
+COPY .air.docker.toml /root/.air.toml
 
 # Expose port
 EXPOSE 6550
@@ -26,7 +26,7 @@ EXPOSE 6550
 # Run with air for automatic rebuild on code changes
 # air будет отслеживать /src и автоматически пересобирать при изменениях
 WORKDIR /src
-ENTRYPOINT ["sh", "-c", "go mod download && air -c /src/.air.toml"]
+ENTRYPOINT ["sh", "-c", "go mod download && air -c /root/.air.toml"]
 
 # === BUILD IMAGE ===
 # podman build -t photocore .
