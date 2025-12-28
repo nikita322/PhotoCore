@@ -2,13 +2,13 @@ package scanner
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
 	exif "github.com/dsoprea/go-exif/v3"
 	exifcommon "github.com/dsoprea/go-exif/v3/common"
 
+	"github.com/photocore/photocore/internal/logger"
 	"github.com/photocore/photocore/internal/storage"
 )
 
@@ -17,12 +17,12 @@ func ExtractMetadata(path string, media *storage.Media) error {
 	// Используем универсальный метод который работает с любыми файлами
 	rawExif, err := exif.SearchFileAndExtractExif(path)
 	if err != nil {
-		log.Printf("EXIF: no EXIF data in %s: %v", path, err)
+		logger.InfoLog.Printf("EXIF: no EXIF data in %s: %v", path, err)
 		return nil
 	}
 
 	if len(rawExif) == 0 {
-		log.Printf("EXIF: empty EXIF data in %s", path)
+		logger.InfoLog.Printf("EXIF: empty EXIF data in %s", path)
 		return nil
 	}
 
@@ -36,11 +36,11 @@ func ExtractMetadata(path string, media *storage.Media) error {
 
 	_, index, err := exif.Collect(im, ti, rawExif)
 	if err != nil {
-		log.Printf("EXIF: failed to parse EXIF in %s: %v", path, err)
+		logger.InfoLog.Printf("EXIF: failed to parse EXIF in %s: %v", path, err)
 		return nil
 	}
 
-	log.Printf("EXIF: found EXIF in %s", path)
+	logger.InfoLog.Printf("EXIF: found EXIF in %s", path)
 
 	// Извлекаем данные из IFD0 и EXIF IFD
 	extractFromIndex(index, media)

@@ -8,14 +8,12 @@
 }
 .album-info p {
     color: var(--text-secondary);
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
 }
 .album-actions {
     display: flex;
     gap: var(--spacing-sm);
-}
-/* Remove button hover display */
-.media-card:hover .remove-btn {
-    display: flex !important;
 }
 {{end}}
 
@@ -29,28 +27,18 @@
         <div class="album-info">
             <h1>{{.Album.Name}}</h1>
             {{if .Album.Description}}<p>{{.Album.Description}}</p>{{end}}
-            <p style="margin-top: 0.5rem; font-size: 0.875rem;">{{.Album.MediaCount}} фото</p>
+            <p>{{.Album.MediaCount}} фото</p>
         </div>
         <div class="album-actions">
             <button class="md-button md-button-outlined" onclick="editAlbum()">Редактировать</button>
-            <button class="md-button md-button-outlined" style="color: var(--md-error); border-color: var(--md-error);" onclick="deleteAlbum()">Удалить альбом</button>
+            <button class="md-button md-button-outlined btn-error" onclick="deleteAlbum()">Удалить альбом</button>
         </div>
     </div>
 
     {{if .Media}}
     <div class="grid">
         {{range .Media}}
-        <div class="md-card md-card-elevated media-card" data-id="{{.ID}}" style="position: relative; cursor: pointer;" onclick="window.location='/view/{{.ID}}'">
-            <div class="md-card-media" style="aspect-ratio: 1;">
-                <img src="/media/{{.ID}}/thumb/small" alt="{{.Filename}}" loading="lazy">
-            </div>
-            <button class="md-icon-button favorite-badge" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5);">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-            </button>
-            <button class="md-icon-button remove-btn" style="position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.5); display: none;" onclick="removeFromAlbum('{{.ID}}', event)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            </button>
-        </div>
+        {{template "media_card" (dict "Media" . "Mode" "gallery")}}
         {{end}}
     </div>
     {{else}}
@@ -64,13 +52,14 @@
 
 {{define "scripts"}}
 const albumId = '{{.Album.ID}}';
-const favSet = new Set([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
+// Инициализируем глобальный favSet
+window.favSet = new Set([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
 
 // Обновляем значки избранного на основе favSet
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.media-card').forEach(card => {
         const badge = card.querySelector('.favorite-badge');
-        if (badge && favSet.has(card.dataset.id)) {
+        if (badge && window.favSet.has(card.dataset.id)) {
             badge.classList.add('active');
         }
     });

@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
-	"log"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -15,6 +16,7 @@ import (
 	"github.com/photocore/photocore/internal/auth"
 	"github.com/photocore/photocore/internal/cache"
 	"github.com/photocore/photocore/internal/config"
+	"github.com/photocore/photocore/internal/logger"
 	"github.com/photocore/photocore/internal/media"
 	"github.com/photocore/photocore/internal/scanner"
 	"github.com/photocore/photocore/internal/storage"
@@ -54,11 +56,30 @@ func NewServer(
 ) (*Server, error) {
 	// Template functions
 	funcMap := template.FuncMap{
-		"sub": func(a, b int) int { return a - b },
+		"sub":     func(a, b int) int { return a - b },
+		"RFC3339": func() string { return time.RFC3339 }, // Функция возвращающая константу форматирования
+		"dict": func(values ...interface{}) (map[string]interface{}, error) {
+			if len(values)%2 != 0 {
+				return nil, fmt.Errorf("dict requires even number of arguments")
+			}
+			dict := make(map[string]interface{}, len(values)/2)
+			for i := 0; i < len(values); i += 2 {
+				key, ok := values[i].(string)
+				if !ok {
+					return nil, fmt.Errorf("dict keys must be strings")
+				}
+				dict[key] = values[i+1]
+			}
+			return dict, nil
+		},
 	}
 
-	// Парсим базовый шаблон (layout)
-	baseTemplate, err := template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/layouts/*.html")
+	// Парсим базовый шаблон (layout) и общие partials
+	baseTemplate, err := template.New("").Funcs(funcMap).ParseFS(templatesFS,
+		"templates/layouts/*.html",
+		"templates/partials/icons.html",
+		"templates/partials/media_card.html",
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse base templates: %w", err)
 	}
@@ -131,6 +152,43 @@ func NewServer(
 	return s, nil
 }
 
+// staticCacheMiddleware добавляет Cache-Control заголовки для статических файлов
+func staticCacheMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		ext := strings.ToLower(filepath.Ext(path))
+
+		// Определяем Cache-Control в зависимости от типа файла
+		var cacheControl string
+		switch ext {
+		case ".js":
+			// JavaScript файлы - 1 год (immutable, так как версионируются)
+			cacheControl = "public, max-age=31536000, immutable"
+		case ".css":
+			// CSS файлы - 1 год (immutable)
+			cacheControl = "public, max-age=31536000, immutable"
+		case ".woff", ".woff2", ".ttf", ".eot", ".otf":
+			// Шрифты - 1 год (immutable)
+			cacheControl = "public, max-age=31536000, immutable"
+		case ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".ico":
+			// Изображения - 1 месяц
+			cacheControl = "public, max-age=2592000"
+		case ".json", ".xml":
+			// Конфигурационные файлы - 1 день
+			cacheControl = "public, max-age=86400"
+		case ".html":
+			// HTML файлы - без кэша (для offline.html и т.д.)
+			cacheControl = "no-cache"
+		default:
+			// Остальные файлы - 1 неделя
+			cacheControl = "public, max-age=604800"
+		}
+
+		w.Header().Set("Cache-Control", cacheControl)
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Server) setupRoutes() {
 	r := chi.NewRouter()
 
@@ -146,7 +204,7 @@ func (s *Server) setupRoutes() {
 	// Статические файлы
 	staticHandler := http.FileServer(http.FS(s.staticFS))
 
-	// Service Worker с правильным scope
+	// Service Worker с правильным scope (без кэша)
 	r.Get("/static/sw.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Header().Set("Service-Worker-Allowed", "/")
@@ -154,7 +212,8 @@ func (s *Server) setupRoutes() {
 		http.StripPrefix("/static/", staticHandler).ServeHTTP(w, r)
 	})
 
-	r.Handle("/static/*", http.StripPrefix("/static/", staticHandler))
+	// Все остальные статические файлы с кэшированием
+	r.Handle("/static/*", staticCacheMiddleware(http.StripPrefix("/static/", staticHandler)))
 
 	// Публичные маршруты
 	r.Get("/login", h.LoginPage)
@@ -240,6 +299,7 @@ func (s *Server) setupRoutes() {
 		// API медиа (для модального окна сравнения)
 		r.Get("/api/media/{id}", h.GetMediaInfo)
 		r.Post("/api/duplicates/replace", h.ReplaceDuplicate)
+		r.Post("/api/duplicates/unmark", h.UnmarkDuplicate)
 
 		// Admin страница и API (проверка прав в handlers)
 		r.Get("/admin", h.AdminPage)
@@ -263,6 +323,6 @@ func (s *Server) setupRoutes() {
 // Start запускает веб-сервер
 func (s *Server) Start() error {
 	addr := fmt.Sprintf("%s:%d", s.cfg.Server.Host, s.cfg.Server.Port)
-	log.Printf("Starting server on http://%s", addr)
+	logger.InfoLog.Printf("Starting server on http://%s", addr)
 	return http.ListenAndServe(addr, s.router)
 }

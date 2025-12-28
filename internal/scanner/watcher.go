@@ -1,7 +1,6 @@
 package scanner
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 
 	"github.com/photocore/photocore/internal/config"
+	"github.com/photocore/photocore/internal/logger"
 	"github.com/photocore/photocore/internal/storage"
 )
 
@@ -80,19 +80,19 @@ func (w *Watcher) Start() error {
 	for _, path := range w.cfg.Storage.MediaPaths {
 		absPath, err := filepath.Abs(path)
 		if err != nil {
-			log.Printf("Watcher: error resolving path %s: %v", path, err)
+			logger.InfoLog.Printf("Watcher: error resolving path %s: %v", path, err)
 			continue
 		}
 
 		if err := w.addRecursive(absPath); err != nil {
-			log.Printf("Watcher: error adding path %s: %v", absPath, err)
+			logger.InfoLog.Printf("Watcher: error adding path %s: %v", absPath, err)
 		}
 	}
 
 	// Запускаем обработку событий
 	go w.eventLoop()
 
-	log.Println("File watcher started")
+	logger.InfoLog.Println("File watcher started")
 	return nil
 }
 
@@ -109,7 +109,7 @@ func (w *Watcher) Stop() error {
 	close(w.stopChan)
 	w.watcher.Close()
 
-	log.Println("File watcher stopped")
+	logger.InfoLog.Println("File watcher stopped")
 	return nil
 }
 
@@ -127,7 +127,7 @@ func (w *Watcher) addRecursive(root string) error {
 			}
 
 			if err := w.watcher.Add(path); err != nil {
-				log.Printf("Watcher: failed to watch %s: %v", path, err)
+				logger.InfoLog.Printf("Watcher: failed to watch %s: %v", path, err)
 			}
 		}
 
@@ -151,7 +151,7 @@ func (w *Watcher) eventLoop() {
 			if !ok {
 				return
 			}
-			log.Printf("Watcher error: %v", err)
+			logger.InfoLog.Printf("Watcher error: %v", err)
 		}
 	}
 }
@@ -190,7 +190,7 @@ func (w *Watcher) handleFSEvent(event fsnotify.Event) {
 		// Если создана новая директория, добавляем её в watcher
 		if isDir && op == "create" {
 			if err := w.addRecursive(event.Name); err != nil {
-				log.Printf("Watcher: failed to add new directory %s: %v", event.Name, err)
+				logger.InfoLog.Printf("Watcher: failed to add new directory %s: %v", event.Name, err)
 			}
 		}
 	}
@@ -225,7 +225,7 @@ func (w *Watcher) processPendingEvents() {
 	w.mu.RUnlock()
 
 	for _, event := range events {
-		log.Printf("Watcher: %s %s (dir=%v)", event.Operation, event.Path, event.IsDir)
+		logger.InfoLog.Printf("Watcher: %s %s (dir=%v)", event.Operation, event.Path, event.IsDir)
 
 		for _, handler := range handlers {
 			handler(*event)

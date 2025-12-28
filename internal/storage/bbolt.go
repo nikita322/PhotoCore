@@ -3,14 +3,13 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/photocore/photocore/internal/logger"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -29,47 +28,9 @@ var (
 	bucketAPITokens = []byte("api_tokens")
 )
 
-// dbLogger - логгер для операций с БД
-var dbLogger *log.Logger
-var dbLogFile *os.File
-
-// initDBLogger инициализирует логгер для БД
-func initDBLogger(dbPath string) {
-	logPath := dbPath + ".log"
-	var err error
-	dbLogFile, err = os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Printf("Warning: failed to create db log file: %v", err)
-		dbLogger = log.New(os.Stdout, "[DB] ", log.LstdFlags|log.Lmicroseconds)
-		return
-	}
-
-	multiWriter := io.MultiWriter(os.Stdout, dbLogFile)
-	dbLogger = log.New(multiWriter, "[DB] ", log.LstdFlags|log.Lmicroseconds)
-	dbLogger.Printf("=== DB Logger initialized, log file: %s ===", logPath)
-	dbLogger.Printf("PID: %d", os.Getpid())
-}
-
-// closeDBLogger закрывает лог файл
-func closeDBLogger() {
-	if dbLogFile != nil {
-		dbLogFile.Sync()
-		dbLogFile.Close()
-	}
-}
-
 // LogShutdownSignal логирует получение сигнала завершения
 func LogShutdownSignal(sig string) {
-	if dbLogger != nil {
-		dbLogger.Printf("=== SHUTDOWN SIGNAL RECEIVED: %s ===", sig)
-	}
-}
-
-// logDBEvent записывает событие БД
-func logDBEvent(format string, args ...interface{}) {
-	if dbLogger != nil {
-		dbLogger.Printf(format, args...)
-	}
+	logger.InfoLog.Printf("[DB] === SHUTDOWN SIGNAL RECEIVED: %s ===", sig)
 }
 
 // Store обертка над bbolt
@@ -80,28 +41,26 @@ type Store struct {
 
 // NewStore создает новое хранилище
 func NewStore(dbPath string) (*Store, error) {
-	initDBLogger(dbPath)
-
-	logDBEvent("=== NewStore called ===")
-	logDBEvent("DB path: %s", dbPath)
-	logDBEvent("Go version: %s, OS: %s, Arch: %s", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	logger.InfoLog.Printf("[DB] === NewStore called ===")
+	logger.InfoLog.Printf("[DB] DB path: %s", dbPath)
+	logger.InfoLog.Printf("[DB] Go version: %s, OS: %s, Arch: %s", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 
 	// Создаем директорию для БД если не существует
 	dir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		logDBEvent("ERROR: failed to create db directory: %v", err)
+		logger.InfoLog.Printf("[DB] ERROR: failed to create db directory: %v", err)
 		return nil, fmt.Errorf("failed to create db directory: %w", err)
 	}
 
 	// Проверяем существующий файл
 	if info, err := os.Stat(dbPath); err == nil {
-		logDBEvent("Existing DB file: size=%d, mod=%s", info.Size(), info.ModTime().Format(time.RFC3339))
+		logger.InfoLog.Printf("[DB] Existing DB file: size=%d, mod=%s", info.Size(), info.ModTime().Format(time.RFC3339))
 	} else if os.IsNotExist(err) {
-		logDBEvent("DB file does not exist, will create")
+		logger.InfoLog.Printf("[DB] DB file does not exist, will create")
 	}
 
 	// Открываем bbolt
-	logDBEvent("Opening bbolt database...")
+	logger.InfoLog.Printf("[DB] Opening bbolt database...")
 	opts := &bolt.Options{
 		Timeout:      5 * time.Second,
 		NoSync:       false, // Sync после каждой транзакции
@@ -110,11 +69,11 @@ func NewStore(dbPath string) (*Store, error) {
 
 	db, err := bolt.Open(dbPath, 0600, opts)
 	if err != nil {
-		logDBEvent("ERROR: Failed to open bbolt: %v", err)
+		logger.InfoLog.Printf("[DB] ERROR: Failed to open bbolt: %v", err)
 		return nil, fmt.Errorf("failed to open bbolt: %w", err)
 	}
 
-	logDBEvent("SUCCESS: bbolt opened successfully")
+	logger.InfoLog.Printf("[DB] SUCCESS: bbolt opened successfully")
 
 	// Создаем все buckets
 	err = db.Update(func(tx *bolt.Tx) error {
@@ -132,11 +91,11 @@ func NewStore(dbPath string) (*Store, error) {
 	})
 	if err != nil {
 		db.Close()
-		logDBEvent("ERROR: Failed to create buckets: %v", err)
+		logger.InfoLog.Printf("[DB] ERROR: Failed to create buckets: %v", err)
 		return nil, err
 	}
 
-	logDBEvent("All buckets initialized")
+	logger.InfoLog.Printf("[DB] All buckets initialized")
 
 	store := &Store{
 		db:     db,
@@ -148,27 +107,26 @@ func NewStore(dbPath string) (*Store, error) {
 
 // Close закрывает хранилище
 func (s *Store) Close() error {
-	logDBEvent("=== Close called ===")
+	logger.InfoLog.Printf("[DB] === Close called ===")
 
 	// Синхронизируем
-	logDBEvent("Syncing database...")
+	logger.InfoLog.Printf("[DB] Syncing database...")
 	if err := s.db.Sync(); err != nil {
-		logDBEvent("WARNING: sync failed: %v", err)
+		logger.InfoLog.Printf("[DB] WARNING: sync failed: %v", err)
 	} else {
-		logDBEvent("Sync successful")
+		logger.InfoLog.Printf("[DB] Sync successful")
 	}
 
 	// Закрываем
-	logDBEvent("Closing bbolt...")
+	logger.InfoLog.Printf("[DB] Closing bbolt...")
 	err := s.db.Close()
 	if err != nil {
-		logDBEvent("ERROR: failed to close db: %v", err)
+		logger.InfoLog.Printf("[DB] ERROR: failed to close db: %v", err)
 	} else {
-		logDBEvent("SUCCESS: bbolt closed successfully")
+		logger.InfoLog.Printf("[DB] SUCCESS: bbolt closed successfully")
 	}
 
-	logDBEvent("=== Close completed ===")
-	closeDBLogger()
+	logger.InfoLog.Printf("[DB] === Close completed ===")
 
 	return err
 }
@@ -1417,7 +1375,7 @@ func (s *Store) CleanupTrash(olderThan time.Duration) (int, error) {
 	for _, m := range trashMedia {
 		if m.DeletedAt != nil && m.DeletedAt.Before(cutoff) {
 			if err := s.DeleteMedia(m.ID); err != nil {
-				log.Printf("Error permanently deleting media %s: %v", m.ID, err)
+				logger.InfoLog.Printf("Error permanently deleting media %s: %v", m.ID, err)
 				continue
 			}
 			deleted++

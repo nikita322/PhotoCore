@@ -2,11 +2,12 @@ package worker
 
 import (
 	"context"
-	"log"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/photocore/photocore/internal/logger"
 )
 
 // TaskType определяет тип задачи
@@ -106,7 +107,7 @@ func (p *Pool) RegisterHandler(taskType TaskType, handler Handler) {
 
 // Start запускает воркеры
 func (p *Pool) Start() {
-	log.Printf("Starting worker pool with %d workers", p.numWorkers)
+	logger.InfoLog.Printf("Starting worker pool with %d workers", p.numWorkers)
 
 	for i := 0; i < p.numWorkers; i++ {
 		p.wg.Add(1)
@@ -119,12 +120,12 @@ func (p *Pool) Start() {
 
 // Stop останавливает пул
 func (p *Pool) Stop() {
-	log.Println("Stopping worker pool...")
+	logger.InfoLog.Println("Stopping worker pool...")
 	p.cancel()
 	close(p.taskQueue)
 	p.wg.Wait()
 	close(p.resultQueue)
-	log.Println("Worker pool stopped")
+	logger.InfoLog.Println("Worker pool stopped")
 }
 
 // Submit добавляет задачу в очередь
@@ -138,7 +139,7 @@ func (p *Pool) Submit(task *Task) bool {
 		return true
 	default:
 		// Очередь переполнена
-		log.Printf("Task queue full, dropping task %s", task.ID)
+		logger.InfoLog.Printf("Task queue full, dropping task %s", task.ID)
 		return false
 	}
 }
@@ -173,16 +174,16 @@ func (p *Pool) QueueLength() int {
 
 func (p *Pool) worker(id int) {
 	defer p.wg.Done()
-	log.Printf("Worker %d started", id)
+	logger.InfoLog.Printf("Worker %d started", id)
 
 	for {
 		select {
 		case <-p.ctx.Done():
-			log.Printf("Worker %d stopping", id)
+			logger.InfoLog.Printf("Worker %d stopping", id)
 			return
 		case task, ok := <-p.taskQueue:
 			if !ok {
-				log.Printf("Worker %d: task queue closed", id)
+				logger.InfoLog.Printf("Worker %d: task queue closed", id)
 				return
 			}
 			p.processTask(id, task)
@@ -210,7 +211,7 @@ func (p *Pool) processTask(workerID int, task *Task) {
 			Error:    nil,
 			Duration: time.Since(start),
 		}
-		log.Printf("Worker %d: no handler for task type %s", workerID, task.Type)
+		logger.InfoLog.Printf("Worker %d: no handler for task type %s", workerID, task.Type)
 	} else {
 		ctx, cancel := context.WithTimeout(p.ctx, 5*time.Minute)
 		res, err := handler(ctx, task)
@@ -245,7 +246,7 @@ func (p *Pool) processTask(workerID int, task *Task) {
 func (p *Pool) processResults() {
 	for result := range p.resultQueue {
 		if !result.Success && result.Error != nil {
-			log.Printf("Task %s failed: %v (took %v)", result.TaskID, result.Error, result.Duration)
+			logger.InfoLog.Printf("Task %s failed: %v (took %v)", result.TaskID, result.Error, result.Duration)
 		}
 	}
 }

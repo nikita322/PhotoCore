@@ -24,13 +24,14 @@ type StorageConfig struct {
 	MediaPaths []string `yaml:"media_paths"`
 	CachePath  string   `yaml:"cache_path"`
 	DBPath     string   `yaml:"db_path"`
+	LogsPath   string   `yaml:"logs_path"`
 }
 
 type ThumbnailsConfig struct {
 	Small   int `yaml:"small"`
 	Medium  int `yaml:"medium"`
 	Large   int `yaml:"large"`
-	Quality int `yaml:"quality"`
+	Quality int `yaml:"quality"` // JPEG quality (0-100)
 }
 
 type AuthConfig struct {
@@ -85,6 +86,9 @@ func (c *Config) setDefaults() {
 	}
 	if c.Storage.DBPath == "" {
 		c.Storage.DBPath = "./data/photocore.db"
+	}
+	if c.Storage.LogsPath == "" {
+		c.Storage.LogsPath = "./logs"
 	}
 	if c.Thumbnails.Small == 0 {
 		c.Thumbnails.Small = 300

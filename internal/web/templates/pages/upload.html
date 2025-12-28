@@ -286,12 +286,6 @@ function handleFiles(files) {
             return false;
         }
 
-        // Проверяем размер (100MB)
-        if (file.size > 100 * 1024 * 1024) {
-            showToast('Файл слишком большой: ' + file.name + ' (макс 100MB)', 'error');
-            return false;
-        }
-
         // Проверяем дубликаты
         if (selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
             return false;
@@ -304,6 +298,8 @@ function handleFiles(files) {
         selectedFiles.push({
             file: file,
             id: generateId(),
+            name: file.name,  // Сохраняем имя для отображения после очистки file
+            size: file.size,  // Сохраняем размер для отображения после очистки file
             status: 'pending',
             progress: 0,
             preview: null
@@ -313,20 +309,89 @@ function handleFiles(files) {
     renderFileList();
     updateSummary();
 
-    // Генерируем превью для изображений
-    newFiles.forEach((file, index) => {
+    // Генерируем маленькие превью асинхронно с батчингом
+    generateThumbnailsBatched(newFiles);
+}
+
+// Батчинг рендеринга для производительности
+let renderTimeout = null;
+function scheduleRender() {
+    if (renderTimeout) return;
+    renderTimeout = setTimeout(() => {
+        renderFileList();
+        renderTimeout = null;
+    }, 100); // Рендерим не чаще раза в 100ms
+}
+
+// Создание маленьких превью через Canvas (60x60px)
+async function createThumbnail(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                // Создаем Canvas для превью 60x60
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                const size = 60;
+                canvas.width = size;
+                canvas.height = size;
+
+                // Вычисляем размеры для обрезки (cover)
+                const scale = Math.max(size / img.width, size / img.height);
+                const scaledWidth = img.width * scale;
+                const scaledHeight = img.height * scale;
+                const x = (size - scaledWidth) / 2;
+                const y = (size - scaledHeight) / 2;
+
+                ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+
+                // Конвертируем в base64 с низким качеством
+                const thumbnail = canvas.toDataURL('image/jpeg', 0.7);
+
+                // Очистка
+                reader.onload = null;
+                reader.onerror = null;
+                img.onload = null;
+                img.onerror = null;
+
+                resolve(thumbnail);
+            };
+            img.onerror = () => {
+                reader.onload = null;
+                reader.onerror = null;
+                img.onload = null;
+                img.onerror = null;
+                reject(new Error('Failed to load image'));
+            };
+            img.src = e.target.result;
+        };
+        reader.onerror = () => {
+            reader.onload = null;
+            reader.onerror = null;
+            reject(new Error('Failed to read file'));
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// Генерация превью с батчингом
+async function generateThumbnailsBatched(files) {
+    for (const file of files) {
         if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
+            try {
+                const thumbnail = await createThumbnail(file);
                 const item = selectedFiles.find(f => f.file === file);
                 if (item) {
-                    item.preview = e.target.result;
-                    renderFileList();
+                    item.preview = thumbnail;
+                    scheduleRender(); // Батчинг - рендер раз в 100ms
                 }
-            };
-            reader.readAsDataURL(file);
+            } catch (error) {
+                console.warn('Failed to create thumbnail:', error);
+            }
         }
-    });
+    }
 }
 
 // === File List Rendering ===
@@ -357,7 +422,7 @@ function renderFileList() {
             '';
 
         const preview = item.preview ?
-            `<img src="${item.preview}" class="file-preview" alt="${item.file.name}">` :
+            `<img src="${item.preview}" class="file-preview" alt="${item.name}">` :
             `<div class="file-preview" style="display: flex; align-items: center; justify-content: center;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -369,8 +434,8 @@ function renderFileList() {
             <div class="file-item ${statusClass}" data-id="${item.id}">
                 ${preview}
                 <div class="file-info">
-                    <div class="file-name">${item.file.name}</div>
-                    <div class="file-size">${formatBytes(item.file.size)}</div>
+                    <div class="file-name">${item.name}</div>
+                    <div class="file-size">${formatBytes(item.size)}</div>
                     ${item.status === 'uploading' ?
                         `<div class="file-progress"><div class="file-progress-bar" style="width: ${item.progress}%"></div></div>` : ''}
                     ${item.message ? `<div class="file-size" style="margin-top: 0.25rem;">${item.message}</div>` : ''}
@@ -433,27 +498,11 @@ async function startUpload() {
         return;
     }
 
-    // Онлайн - загружаем напрямую
+    // Онлайн - загружаем параллельно (5 файлов одновременно)
     isUploading = true;
     document.getElementById('uploadBtn').disabled = true;
 
-    for (const item of pendingFiles) {
-        item.status = 'uploading';
-        item.progress = 0;
-        renderFileList();
-
-        try {
-            await uploadFile(item);
-            item.status = 'success';
-            item.progress = 100;
-        } catch (error) {
-            item.status = 'error';
-            item.message = error.message;
-        }
-
-        renderFileList();
-        updateSummary();
-    }
+    await uploadFilesParallel(pendingFiles, 5);
 
     isUploading = false;
 
@@ -464,7 +513,55 @@ async function startUpload() {
 
     if (!hasErrors && !hasPending) {
         showToast('Все файлы загружены!', 'success');
+
+        // Очищаем успешно загруженные файлы через 3 секунды для освобождения памяти
+        setTimeout(() => {
+            selectedFiles = selectedFiles.filter(f => f.status !== 'success');
+            renderFileList();
+            updateSummary();
+        }, 3000);
     }
+}
+
+// Параллельная загрузка файлов с ограничением количества
+async function uploadFilesParallel(files, maxConcurrent) {
+    const queue = [...files];
+    const executing = [];
+
+    async function uploadNext() {
+        if (queue.length === 0) return;
+
+        const item = queue.shift();
+        item.status = 'uploading';
+        item.progress = 0;
+        renderFileList();
+
+        try {
+            await uploadFile(item);
+            item.status = 'success';
+            item.progress = 100;
+
+            // Освобождаем только ссылку на файл (превью оставляем для UI)
+            item.file = null;
+        } catch (error) {
+            item.status = 'error';
+            item.message = error.message;
+        }
+
+        renderFileList();
+        updateSummary();
+
+        // Запускаем следующий файл из очереди
+        return uploadNext();
+    }
+
+    // Запускаем maxConcurrent параллельных загрузок
+    for (let i = 0; i < Math.min(maxConcurrent, files.length); i++) {
+        executing.push(uploadNext());
+    }
+
+    // Ждем завершения всех загрузок
+    await Promise.all(executing);
 }
 
 async function uploadFile(item) {
@@ -488,7 +585,7 @@ async function uploadFile(item) {
             if (xhr.status >= 200 && xhr.status < 300) {
                 const response = JSON.parse(xhr.responseText);
                 if (response.messages && response.messages.length > 0) {
-                    const msg = response.messages.find(m => m.includes(item.file.name));
+                    const msg = response.messages.find(m => m.includes(item.name));
                     item.message = msg || 'Загружено';
                 }
                 resolve();

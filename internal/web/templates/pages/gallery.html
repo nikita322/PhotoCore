@@ -467,32 +467,17 @@ body.select-mode .media-card.selected::after {
 </div>
 {{end}}
 
-{{define "modals"}}
-<!-- Lightbox -->
-<div class="lightbox" id="lightbox">
-    <div class="lightbox-header">
-        <span class="lightbox-title" id="lightbox-title"></span>
-        <div class="lightbox-actions">
-            <button class="lightbox-btn" id="lb-favorite-btn" onclick="lbToggleFavorite()" title="В избранное"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="icon-star-outline"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="icon-star-filled" style="display:none"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg></button>
-            {{if .CanEdit}}<button class="lightbox-btn" onclick="lbShowAlbumModal()" title="Добавить в альбом"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg></button>{{end}}
-            {{if .CanEdit}}<button class="lightbox-btn" onclick="lbShowTagsModal()" title="Добавить теги"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58s1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/></svg></button>{{end}}
-            <button class="lightbox-btn" onclick="lbDownload()" title="Скачать"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg></button>
-            {{if .IsAdmin}}<button class="lightbox-btn danger" onclick="lbDelete()" title="Удалить"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>{{end}}
-            <button class="lightbox-close" onclick="closeLightbox()"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
-        </div>
-    </div>
-    <div class="lightbox-content">
-        <button class="lightbox-nav prev" id="lb-prev" onclick="lbNavigate(-1)"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></button>
-        <img id="lightbox-img" src="" alt="">
-        <button class="lightbox-nav next" id="lb-next" onclick="lbNavigate(1)"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>
-    </div>
-    <div class="lightbox-footer">
-        <div class="lightbox-info" id="lightbox-info"></div>
-        <span class="lightbox-counter" id="lightbox-counter"></span>
-    </div>
-</div>
+{{/* Включаем lightbox компонент из base.html */}}
+{{define "lightbox"}}
+{{template "lightbox_html" .}}
+{{end}}
 
-<!-- Album Modal -->
+{{define "lightbox_scripts"}}
+{{template "lightbox_js" .}}
+{{end}}
+
+{{define "modals"}}
+<!-- Bulk Album Modal (для массовых операций с выбранными карточками) -->
 <div class="modal" id="album-modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -531,46 +516,6 @@ body.select-mode .media-card.selected::after {
         </div>
     </div>
 </div>
-
-<!-- Lightbox Album Modal -->
-<div class="modal" id="lb-album-modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Добавить в альбом</h2>
-            <button class="modal-close" onclick="closeModal('lb-album-modal')"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label>Выберите альбом</label>
-                <select class="form-select" id="lb-album-select"></select>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="md-button md-button-text" onclick="closeModal('lb-album-modal')">Отмена</button>
-            <button class="md-button md-button-filled" onclick="lbAddToAlbum()">Добавить</button>
-        </div>
-    </div>
-</div>
-
-<!-- Lightbox Tags Modal -->
-<div class="modal" id="lb-tags-modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Добавить теги</h2>
-            <button class="modal-close" onclick="closeModal('lb-tags-modal')"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label>Теги (через запятую)</label>
-                <input type="text" class="form-input" id="lb-tags-input" placeholder="природа, лето, отпуск">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="md-button md-button-text" onclick="closeModal('lb-tags-modal')">Отмена</button>
-            <button class="md-button md-button-filled" onclick="lbAddTags()">Добавить</button>
-        </div>
-    </div>
-</div>
 {{end}}
 
 {{define "scripts"}}
@@ -581,13 +526,13 @@ let currentPeriod = null;
 let isAllMode = true;
 
 // === Favorites Set (loaded once from server) ===
-const favSet = new Set([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
+window.favSet = new Set([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
 
 function updateFavoriteBadges() {
     document.querySelectorAll('.media-card').forEach(card => {
         const badge = card.querySelector('.favorite-badge');
         if (badge) {
-            const isFav = favSet.has(card.dataset.id);
+            const isFav = window.favSet.has(card.dataset.id);
             badge.classList.toggle('active', isFav);
             card.dataset.favorite = isFav;
         }
@@ -834,9 +779,7 @@ function addTags() {
     .catch(err => showToast('Ошибка: ' + err.message, 'error'));
 }
 
-// === Lightbox ===
-let lbMediaList = [], lbCurrentIndex = 0, lbCurrentMedia = null, lbTouchStartX = 0, lbTouchEndX = 0;
-
+// === Queue Status ===
 function openLightbox(id, filename, meta) {
     if (selectMode) return;
     lbMediaList = [];

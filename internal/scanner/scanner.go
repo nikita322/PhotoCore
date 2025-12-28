@@ -2,7 +2,6 @@ package scanner
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/photocore/photocore/internal/config"
+	"github.com/photocore/photocore/internal/logger"
 	"github.com/photocore/photocore/internal/storage"
 )
 
@@ -116,7 +116,7 @@ func (s *Scanner) scan() {
 
 		absPath, err := filepath.Abs(mediaPath)
 		if err != nil {
-			log.Printf("Error resolving path %s: %v", mediaPath, err)
+			logger.InfoLog.Printf("Error resolving path %s: %v", mediaPath, err)
 			continue
 		}
 
@@ -153,7 +153,7 @@ func (s *Scanner) scan() {
 			// Проверяем, есть ли файл в БД
 			existing, err := s.store.GetMediaByPath(path)
 			if err != nil {
-				log.Printf("Error checking media %s: %v", path, err)
+				logger.InfoLog.Printf("Error checking media %s: %v", path, err)
 				s.mu.Lock()
 				s.progress.Errors++
 				s.mu.Unlock()
@@ -205,7 +205,7 @@ func (s *Scanner) scan() {
 			// Извлекаем метаданные для изображений (только для новых файлов)
 			if existing == nil && (mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw) {
 				if err := ExtractMetadata(path, media); err != nil {
-					log.Printf("Error extracting metadata from %s: %v", path, err)
+					logger.InfoLog.Printf("Error extracting metadata from %s: %v", path, err)
 				}
 			}
 
@@ -214,7 +214,7 @@ func (s *Scanner) scan() {
 				isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
 				hashes, err := CalculateHashes(path, isImage)
 				if err != nil {
-					log.Printf("Error calculating hashes for %s: %v", path, err)
+					logger.InfoLog.Printf("Error calculating hashes for %s: %v", path, err)
 				} else {
 					media.Checksum = hashes.Checksum
 					media.ImageHash = hashes.ImageHash
@@ -227,13 +227,13 @@ func (s *Scanner) scan() {
 				isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
 				dupResult, err := s.store.CheckDuplicate(media.Size, media.Checksum, media.ImageHash, isImage, 10)
 				if err != nil {
-					log.Printf("Error checking duplicates for %s: %v", path, err)
+					logger.InfoLog.Printf("Error checking duplicates for %s: %v", path, err)
 				} else if dupResult.IsDuplicate {
 					// Это дубликат - сохраняем с пометкой и перемещаем в корзину
 					media.DuplicateOf = dupResult.ExistingID
 
 					if err := s.store.SaveMedia(media); err != nil {
-						log.Printf("Error saving duplicate %s: %v", path, err)
+						logger.InfoLog.Printf("Error saving duplicate %s: %v", path, err)
 						return nil
 					}
 
@@ -241,9 +241,9 @@ func (s *Scanner) scan() {
 					s.store.SoftDeleteMedia(media.ID)
 
 					if dupResult.Type == "exact" {
-						log.Printf("Duplicate moved to trash: %s (exact copy of %s)", path, dupResult.ExistingID)
+						logger.InfoLog.Printf("Duplicate moved to trash: %s (exact copy of %s)", path, dupResult.ExistingID)
 					} else {
-						log.Printf("Duplicate moved to trash: %s (similar to %s, distance=%d)", path, dupResult.ExistingID, dupResult.Distance)
+						logger.InfoLog.Printf("Duplicate moved to trash: %s (similar to %s, distance=%d)", path, dupResult.ExistingID, dupResult.Distance)
 					}
 
 					s.mu.Lock()
@@ -255,7 +255,7 @@ func (s *Scanner) scan() {
 
 			// Сохраняем в БД
 			if err := s.store.SaveMedia(media); err != nil {
-				log.Printf("Error saving media %s: %v", path, err)
+				logger.InfoLog.Printf("Error saving media %s: %v", path, err)
 				s.mu.Lock()
 				s.progress.Errors++
 				s.mu.Unlock()
@@ -274,11 +274,11 @@ func (s *Scanner) scan() {
 		})
 
 		if err != nil {
-			log.Printf("Error walking path %s: %v", mediaPath, err)
+			logger.InfoLog.Printf("Error walking path %s: %v", mediaPath, err)
 		}
 	}
 
-	log.Printf("Scan completed: %d files, %d new, %d updated, %d duplicates skipped, %d errors",
+	logger.InfoLog.Printf("Scan completed: %d files, %d new, %d updated, %d duplicates skipped, %d errors",
 		s.progress.TotalFiles, s.progress.NewFiles, s.progress.UpdatedFiles, s.progress.SkippedDuplicates, s.progress.Errors)
 }
 

@@ -4,6 +4,7 @@
 *.exe~
 *.dll
 *.so
+*.md
 *.dylib
 photocore
 photocore-*

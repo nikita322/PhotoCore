@@ -7,12 +7,13 @@ storage:
     - "/media"  # Docker: монтируется из хоста
   cache_path: "/thumbs"  # Docker: монтируется из хоста
   db_path: "/data/photocore.db"  # Docker: монтируется из хоста
+  logs_path: "/data/logs"  # Docker: путь к директории для логов
 
 thumbnails:
   small: 300
   medium: 600
   large: 1200
-  quality: 85
+  quality: 85  # JPEG quality (0-100)
 
 auth:
   session_secret: "change-me-in-production-use-random-32-bytes"

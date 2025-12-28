@@ -1,7 +1,7 @@
 {{define "title"}}Поиск - PhotoCore{{end}}
 
 {{define "head"}}
-<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<script src="/static/js/htmx.min.js"></script>
 {{end}}
 
 {{define "styles"}}
@@ -91,12 +91,13 @@
 
 {{define "scripts"}}
 let selectedTags = [];
-const favSet = new Set([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
+// Инициализируем глобальный favSet
+window.favSet = new Set([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
 
 function updateFavoriteBadges() {
     document.querySelectorAll('.media-card').forEach(card => {
         const badge = card.querySelector('.favorite-badge');
-        if (badge && favSet.has(card.dataset.id)) {
+        if (badge && window.favSet.has(card.dataset.id)) {
             badge.classList.add('active');
         }
     });

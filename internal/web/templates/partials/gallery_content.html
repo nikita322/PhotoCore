@@ -21,22 +21,7 @@
     <h2 class="section-title">Медиа ({{len .Media}})</h2>
     <div class="grid">
         {{range .Media}}
-        <div class="md-card md-card-elevated media-card" data-id="{{.ID}}" data-filename="{{.Filename}}" data-meta="{{if .Metadata.Camera}}{{.Metadata.Camera}}{{end}}{{if .Metadata.Aperture}} • {{.Metadata.Aperture}}{{end}}{{if .Metadata.ShutterSpeed}} • {{.Metadata.ShutterSpeed}}{{end}}{{if .Metadata.ISO}} • ISO {{.Metadata.ISO}}{{end}}" style="position: relative; cursor: pointer;" onclick="openLightbox('{{.ID}}', '{{.Filename}}', '{{if .Metadata.Camera}}{{.Metadata.Camera}}{{end}}{{if .Metadata.Aperture}} • {{.Metadata.Aperture}}{{end}}{{if .Metadata.ShutterSpeed}} • {{.Metadata.ShutterSpeed}}{{end}}{{if .Metadata.ISO}} • ISO {{.Metadata.ISO}}{{end}}')">
-            <div class="md-card-media" style="aspect-ratio: 1;">
-                <img data-src="/media/{{.ID}}/thumb" alt="{{.Filename}}" loading="lazy">
-            </div>
-            <button class="md-icon-button favorite-badge" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5);" onclick="toggleFavorite('{{.ID}}', event)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-            </button>
-            {{if eq .Type "video"}}
-            <span class="md-chip badge video" style="position: absolute; top: 8px; left: 8px; background: var(--md-primary-container); color: var(--md-on-primary-container); height: 24px; padding: 0 8px; font-size: 11px;">VIDEO</span>
-            {{else if eq .Type "raw"}}
-            <span class="md-chip badge raw" style="position: absolute; top: 8px; left: 8px; background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); height: 24px; padding: 0 8px; font-size: 11px;">RAW</span>
-            {{end}}
-            <div class="overlay">
-                <div class="filename">{{.Filename}}</div>
-            </div>
-        </div>
+        {{template "media_card" (dict "Media" . "Mode" "gallery")}}
         {{end}}
     </div>
 </section>

@@ -5,9 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,6 +21,7 @@ import (
 	"github.com/photocore/photocore/internal/auth"
 	"github.com/photocore/photocore/internal/cache"
 	"github.com/photocore/photocore/internal/config"
+	"github.com/photocore/photocore/internal/logger"
 	"github.com/photocore/photocore/internal/media"
 	"github.com/photocore/photocore/internal/scanner"
 	"github.com/photocore/photocore/internal/storage"
@@ -230,14 +231,34 @@ func (h *Handlers) serveThumbnailWithSize(w http.ResponseWriter, r *http.Request
 	// Проверяем, есть ли превью
 	thumbPath := h.thumbGen.GetThumbnailPath(id, size)
 	if _, err := os.Stat(thumbPath); os.IsNotExist(err) {
-		// Превью нет - ставим в очередь и возвращаем placeholder
-		if !h.thumbService.IsProcessing(id, size) {
-			h.thumbService.QueueThumbnail(id, size)
+		// Проверяем, не было ли постоянной ошибки
+		if hasFailed, errMsg := h.thumbService.HasFailed(id, size); hasFailed {
+			logger.InfoLog.Printf("Thumbnail %s/%s permanently failed: %s", id[:16], size, errMsg)
+			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+			w.Header().Set("X-Thumbnail-Status", "failed")
+			w.Header().Set("X-Thumbnail-Error", errMsg)
+			http.Error(w, "Thumbnail generation failed: "+errMsg, http.StatusUnprocessableEntity)
+			return
 		}
 
-		w.Header().Set("Content-Type", "image/svg+xml")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Write([]byte(placeholderSVG))
+		// Превью нет - ставим в очередь и возвращаем 503 (Service Unavailable)
+		isProcessing := h.thumbService.IsProcessing(id, size)
+		if !isProcessing {
+			queued := h.thumbService.QueueThumbnail(id, size)
+			if queued {
+				logger.InfoLog.Printf("Thumbnail missing for %s/%s, queued for generation", id[:16], size)
+			} else {
+				logger.InfoLog.Printf("WARNING: Failed to queue thumbnail for %s/%s (pool full?)", id[:16], size)
+			}
+		} else {
+			logger.InfoLog.Printf("Thumbnail for %s/%s is already in queue", id[:16], size)
+		}
+
+		// Возвращаем 503 - миниатюра ещё не готова, генерируется
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+		w.Header().Set("Retry-After", "2") // Попробовать через 2 секунды
+		w.Header().Set("X-Thumbnail-Status", fmt.Sprintf("processing=%v", isProcessing))
+		http.Error(w, "Thumbnail is being generated", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -1456,7 +1477,7 @@ func (h *Handlers) PermanentDelete(w http.ResponseWriter, r *http.Request) {
 
 	// Удаляем физический файл с диска
 	if err := os.Remove(media.Path); err != nil && !os.IsNotExist(err) {
-		log.Printf("Warning: failed to delete file %s: %v", media.Path, err)
+		logger.InfoLog.Printf("Warning: failed to delete file %s: %v", media.Path, err)
 	}
 
 	// Удаляем thumbnails
@@ -1497,7 +1518,7 @@ func (h *Handlers) EmptyTrash(w http.ResponseWriter, r *http.Request) {
 	for _, m := range trashMedia {
 		// Удаляем физический файл с диска
 		if err := os.Remove(m.Path); err != nil && !os.IsNotExist(err) {
-			log.Printf("Warning: failed to delete file %s: %v", m.Path, err)
+			logger.InfoLog.Printf("Warning: failed to delete file %s: %v", m.Path, err)
 		}
 
 		// Удаляем thumbnails
@@ -1505,7 +1526,7 @@ func (h *Handlers) EmptyTrash(w http.ResponseWriter, r *http.Request) {
 
 		// Удаляем из БД
 		if err := h.store.DeleteMedia(m.ID); err != nil {
-			log.Printf("Error deleting media %s: %v", m.ID, err)
+			logger.InfoLog.Printf("Error deleting media %s: %v", m.ID, err)
 			continue
 		}
 		deleted++
@@ -1597,6 +1618,49 @@ func (h *Handlers) ReplaceDuplicate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UnmarkDuplicate снимает статус дубликата с медиа
+func (h *Handlers) UnmarkDuplicate(w http.ResponseWriter, r *http.Request) {
+	// Проверка прав: только admin
+	role := auth.GetUserRole(r)
+	if role != "admin" {
+		h.jsonError(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	var req struct {
+		MediaID string `json:"media_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Получаем медиа
+	media, err := h.store.GetMedia(req.MediaID)
+	if err != nil || media == nil {
+		h.jsonError(w, "Media not found", http.StatusNotFound)
+		return
+	}
+
+	// Снимаем статус дубликата и восстанавливаем из корзины
+	media.DuplicateOf = ""
+	media.DeletedAt = nil
+
+	if err := h.store.SaveMedia(media); err != nil {
+		h.jsonError(w, "Failed to update media: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Инвалидируем кэш
+	h.cache.Clear()
+
+	h.jsonResponse(w, map[string]interface{}{
+		"status":  "unmarked",
+		"message": "Статус дубликата снят",
+	})
+}
+
 // BulkMoveToTrash перемещает несколько медиа в корзину
 func (h *Handlers) BulkMoveToTrash(w http.ResponseWriter, r *http.Request) {
 	// Проверка прав: только admin
@@ -1618,7 +1682,7 @@ func (h *Handlers) BulkMoveToTrash(w http.ResponseWriter, r *http.Request) {
 	var moved int
 	for _, id := range req.MediaIDs {
 		if err := h.store.SoftDeleteMedia(id); err != nil {
-			log.Printf("Error moving media %s to trash: %v", id, err)
+			logger.InfoLog.Printf("Error moving media %s to trash: %v", id, err)
 			continue
 		}
 		h.cache.DeleteMedia(id)
@@ -1654,7 +1718,7 @@ func (h *Handlers) BulkRestore(w http.ResponseWriter, r *http.Request) {
 	var restored int
 	for _, id := range req.MediaIDs {
 		if err := h.store.RestoreMedia(id); err != nil {
-			log.Printf("Error restoring media %s: %v", id, err)
+			logger.InfoLog.Printf("Error restoring media %s: %v", id, err)
 			continue
 		}
 		h.cache.DeleteMedia(id)
@@ -1701,14 +1765,14 @@ func (h *Handlers) render(w http.ResponseWriter, name string, data interface{}) 
 
 	tmpl, ok := h.pageTemplates[name]
 	if !ok {
-		log.Printf("Template not found: %s", name)
+		logger.InfoLog.Printf("Template not found: %s", name)
 		http.Error(w, "Template not found", http.StatusInternalServerError)
 		return
 	}
 
 	// Выполняем шаблон "base" который использует блоки определённые в странице
 	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		log.Printf("Template error for %s: %v", name, err)
+		logger.ErrorLog.Printf("Template execution error for %s: %v", name, err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 	}
 }
@@ -1719,14 +1783,14 @@ func (h *Handlers) renderPartial(w http.ResponseWriter, name string, data interf
 
 	tmpl, ok := h.pageTemplates[name]
 	if !ok {
-		log.Printf("Template not found: %s", name)
+		logger.ErrorLog.Printf("Template not found: %s", name)
 		http.Error(w, "Template not found", http.StatusInternalServerError)
 		return
 	}
 
 	// Выполняем шаблон напрямую по имени (для фрагментов)
 	if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
-		log.Printf("Template error for %s: %v", name, err)
+		logger.ErrorLog.Printf("Template execution error for %s: %v", name, err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 	}
 }
@@ -1771,41 +1835,6 @@ func (h *Handlers) getMimeType(ext string) string {
 	return "application/octet-stream"
 }
 
-const placeholderSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
-<defs>
-<linearGradient id="shimmer" x1="0%" y1="0%" x2="100%" y2="0%">
-<stop offset="0%" style="stop-color:#2a2a2a"/>
-<stop offset="50%" style="stop-color:#3a3a3a"/>
-<stop offset="100%" style="stop-color:#2a2a2a"/>
-<animate attributeName="x1" values="-100%;100%" dur="1.5s" repeatCount="indefinite"/>
-<animate attributeName="x2" values="0%;200%" dur="1.5s" repeatCount="indefinite"/>
-</linearGradient>
-</defs>
-<rect fill="#1a1a1a" width="300" height="300"/>
-<rect fill="url(#shimmer)" width="300" height="300" rx="4"/>
-<g transform="translate(150,130)">
-<circle cx="0" cy="0" r="4" fill="#666">
-<animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" begin="0s"/>
-</circle>
-<circle cx="16" cy="0" r="4" fill="#666">
-<animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" begin="0.15s"/>
-</circle>
-<circle cx="32" cy="0" r="4" fill="#666">
-<animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" begin="0.3s"/>
-</circle>
-<circle cx="-16" cy="0" r="4" fill="#666">
-<animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" begin="0.45s"/>
-</circle>
-<circle cx="-32" cy="0" r="4" fill="#666">
-<animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" begin="0.6s"/>
-</circle>
-</g>
-<g transform="translate(150,170)" fill="#555">
-<path d="M-20,-15 L20,-15 L20,10 L0,20 L-20,10 Z" opacity="0.3"/>
-<circle cx="-8" cy="-5" r="4" opacity="0.4"/>
-</g>
-</svg>`
-
 // === Upload Page ===
 
 // UploadPage отображает страницу загрузки
@@ -1840,8 +1869,8 @@ func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ограничиваем размер до 100MB
-	err := r.ParseMultipartForm(100 << 20)
+	// Ограничиваем размер до 10GB (для семейного использования)
+	err := r.ParseMultipartForm(10 << 30)
 	if err != nil {
 		h.jsonError(w, "Failed to parse form: "+err.Error(), http.StatusBadRequest)
 		return
@@ -1913,10 +1942,14 @@ func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Копируем содержимое
-		_, err = io.Copy(dst, src)
-		src.Close()
-		dst.Close()
+		// Гарантируем закрытие файлов даже при панике
+		func() {
+			defer src.Close()
+			defer dst.Close()
+
+			// Копируем содержимое
+			_, err = io.Copy(dst, src)
+		}()
 
 		if err != nil {
 			os.Remove(targetPath)
@@ -1953,7 +1986,7 @@ func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		// Извлекаем метаданные для изображений
 		if mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw {
 			if err := scanner.ExtractMetadata(targetPath, mediaItem); err != nil {
-				log.Printf("Warning: failed to extract metadata from %s: %v", uniqueFilename, err)
+				logger.InfoLog.Printf("Warning: failed to extract metadata from %s: %v", uniqueFilename, err)
 			}
 		}
 
@@ -1961,7 +1994,7 @@ func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
 		hashes, err := scanner.CalculateHashes(targetPath, isImage)
 		if err != nil {
-			log.Printf("Warning: failed to calculate hashes for %s: %v", uniqueFilename, err)
+			logger.InfoLog.Printf("Warning: failed to calculate hashes for %s: %v", uniqueFilename, err)
 		} else {
 			mediaItem.Checksum = hashes.Checksum
 			mediaItem.ImageHash = hashes.ImageHash

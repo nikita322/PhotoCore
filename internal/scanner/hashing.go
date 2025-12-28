@@ -9,10 +9,10 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
-	"log"
 	"os"
 
 	"github.com/corona10/goimagehash"
+	"github.com/photocore/photocore/internal/logger"
 )
 
 // HashResult содержит результаты хеширования файла
@@ -36,7 +36,7 @@ func CalculateHashes(path string, isImage bool) (*HashResult, error) {
 	if isImage {
 		imgHash, err := calculateImageHash(path)
 		if err != nil {
-			log.Printf("Warning: failed to calculate image hash for %s: %v", path, err)
+			logger.InfoLog.Printf("Warning: failed to calculate image hash for %s: %v", path, err)
 			// Не возвращаем ошибку - файл может быть повреждён или в неподдерживаемом формате
 		} else {
 			result.ImageHash = imgHash

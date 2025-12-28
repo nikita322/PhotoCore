@@ -2,112 +2,11 @@
 
 {{define "styles"}}
 /* Trash page specific styles */
+/* (Card styles are now in media_card_styles component) */
+
 .trash-actions {
     display: flex;
     gap: var(--spacing-sm);
-}
-
-.trash-card {
-    position: relative;
-    border-radius: var(--radius-sm);
-    background: var(--md-surface-container);
-    cursor: pointer;
-    overflow: visible;
-}
-.trash-card > img {
-    width: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
-    opacity: 0.7;
-    border-radius: var(--radius-sm);
-    transition: opacity var(--transition-fast);
-}
-.trash-card:hover > img {
-    opacity: 1;
-}
-
-.trash-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(transparent, var(--md-scrim-heavy));
-    padding: var(--spacing-md) var(--spacing-sm) var(--spacing-sm);
-    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-}
-.trash-filename {
-    font-size: 0.75rem;
-    color: var(--md-white);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: var(--spacing-xs);
-}
-.trash-days {
-    font-size: 0.7rem;
-    color: var(--md-error);
-}
-.trash-days.warning {
-    color: var(--md-warning);
-}
-.trash-days.ok {
-    color: var(--text-muted);
-}
-
-.trash-actions-card {
-    position: absolute;
-    top: var(--spacing-sm);
-    right: var(--spacing-sm);
-    display: flex;
-    gap: var(--spacing-xs);
-    opacity: 0;
-    transition: opacity var(--transition-fast);
-}
-.trash-card:hover .trash-actions-card {
-    opacity: 1;
-}
-
-.action-btn {
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: var(--radius-xs);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    transition: background-color var(--transition-fast);
-}
-.restore-btn {
-    background: var(--md-tertiary);
-    color: var(--md-on-tertiary);
-}
-.restore-btn:hover {
-    background: var(--md-tertiary);
-}
-.delete-btn {
-    background: var(--md-error);
-    color: var(--md-on-error);
-}
-.delete-btn:hover {
-    background: var(--md-error);
-}
-
-.duplicate-badge {
-    position: absolute;
-    top: var(--spacing-sm);
-    left: var(--spacing-sm);
-    background: var(--md-warning);
-    color: var(--md-on-tertiary);
-    font-size: 0.65rem;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: var(--radius-xs);
-    z-index: 10;
-}
-.trash-card[onclick] {
-    cursor: pointer;
 }
 
 /* Compare modal */
@@ -136,6 +35,10 @@
 }
 .compare-item {
     text-align: center;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 .compare-label {
     font-size: 0.8rem;
@@ -160,7 +63,12 @@
     object-fit: cover;
     border-radius: var(--radius-sm);
     margin-bottom: 0.75rem;
+    background: var(--md-surface-container-high);
+    transition: opacity 0.3s;
 }
+.compare-item img.loading { opacity: 0; }
+.compare-item img.loaded { opacity: 1; }
+.compare-item img.error { opacity: 0.3; }
 .compare-info {
     font-size: 0.75rem;
     color: var(--text-secondary);
@@ -196,6 +104,12 @@
     gap: var(--spacing-md);
     justify-content: center;
 }
+
+/* Trash-specific utility */
+.trash-count {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
 {{end}}
 
 {{define "content"}}
@@ -206,11 +120,11 @@
                 <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
             </svg>
             Корзина
-            {{if .TrashCount}}<span style="font-size: 0.9rem; color: var(--text-muted);">({{.TrashCount}})</span>{{end}}
+            {{if .TrashCount}}<span class="trash-count">({{.TrashCount}})</span>{{end}}
         </h1>
         {{if .TrashItems}}
         <div class="trash-actions">
-            <button class="md-button md-button-outlined" style="color: var(--md-error); border-color: var(--md-error);" onclick="showEmptyConfirm()">
+            <button class="md-button md-button-outlined btn-error" onclick="showEmptyConfirm()">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                 Очистить корзину
             </button>
@@ -225,31 +139,20 @@
 
     <div class="grid">
         {{range .TrashItems}}
-        <div class="md-card md-card-elevated trash-card" data-id="{{.ID}}" style="position: relative; overflow: visible;" {{if .DuplicateOf}}onclick="showCompare('{{.ID}}', '{{.DuplicateOf}}', event)"{{end}}>
-            <img src="/media/{{.ID}}/thumb/small" alt="{{.Filename}}" loading="lazy" style="width: 100%; aspect-ratio: 1; object-fit: cover; opacity: 0.7; transition: opacity var(--transition-fast);">
-            {{if .DuplicateOf}}
-            <span class="md-chip duplicate-badge" style="position: absolute; top: 8px; left: 8px; background: var(--md-warning); color: var(--md-on-tertiary); height: 20px; padding: 0 6px; font-size: 11px; font-weight: bold;">Дубликат</span>
-            {{end}}
-            <div class="trash-actions-card" style="position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; transition: opacity var(--transition-fast);">
-                <button class="md-icon-button restore-btn" style="background: var(--md-tertiary); color: var(--md-on-tertiary);" onclick="restoreMedia('{{.ID}}', event)" title="Восстановить">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/></svg>
-                </button>
-                <button class="md-icon-button delete-btn" style="background: var(--md-error); color: var(--md-on-error);" onclick="deleteMedia('{{.ID}}', event)" title="Удалить навсегда">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                </button>
-            </div>
-            <div class="trash-overlay" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, var(--md-scrim-heavy)); padding: var(--spacing-md) var(--spacing-sm) var(--spacing-sm); border-radius: 0 0 var(--radius-md) var(--radius-md);">
-                <div class="trash-filename" style="font-size: 0.75rem; color: var(--md-white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">{{.Filename}}</div>
-                <div class="trash-days {{if le .DaysRemaining 3}}warning{{else if le .DaysRemaining 7}}warning{{else}}ok{{end}}" style="font-size: 0.7rem;">
-                    {{if le .DaysRemaining 0}}Будет удалено сегодня{{else}}Осталось {{.DaysRemaining}} дн.{{end}}
-                </div>
-            </div>
-        </div>
+        {{$onClick := ""}}
+        {{if .DuplicateOf}}
+            {{$onClick = printf "console.log('Trash card clicked:', '%s', '%s'); showCompare('%s', '%s', event)" .ID .DuplicateOf .ID .DuplicateOf}}
+        {{else}}
+            {{$takenAt := ""}}{{if not .TakenAt.IsZero}}{{$takenAt = .TakenAt.Format "2006-01-02T15:04:05Z07:00"}}{{end}}
+            {{$meta := ""}}{{if .Metadata.Camera}}{{$meta = .Metadata.Camera}}{{end}}{{if .Metadata.Aperture}}{{$meta = printf "%s • %s" $meta .Metadata.Aperture}}{{end}}{{if .Metadata.ShutterSpeed}}{{$meta = printf "%s • %s" $meta .Metadata.ShutterSpeed}}{{end}}{{if .Metadata.ISO}}{{$meta = printf "%s • ISO %s" $meta .Metadata.ISO}}{{end}}
+            {{$onClick = printf "console.log('Trash card clicked:', '%s'); openLightbox('%s', '%s', '%s', '%s')" .ID .ID .Filename $takenAt $meta}}
+        {{end}}
+        {{template "media_card" (dict "Media" . "Mode" "trash" "DuplicateOf" .DuplicateOf "DaysRemaining" .DaysRemaining "OnClick" $onClick "ShowFavorite" false)}}
         {{end}}
     </div>
     {{else}}
     <div class="empty-state">
-        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.5">
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
         </svg>
         <h3>Корзина пуста</h3>
@@ -265,18 +168,19 @@
         <div class="compare-grid">
             <div class="compare-item duplicate">
                 <div class="compare-label">Дубликат</div>
-                <img id="compareDupImg" src="" alt="Дубликат">
+                <img id="compareDupImg" alt="Дубликат">
                 <div class="compare-info" id="compareDupInfo"></div>
             </div>
             <div class="compare-item original">
                 <div class="compare-label">Оригинал</div>
-                <img id="compareOrigImg" src="" alt="Оригинал">
+                <img id="compareOrigImg" alt="Оригинал">
                 <div class="compare-info" id="compareOrigInfo"></div>
             </div>
         </div>
         <div class="compare-actions">
             <button class="md-button md-button-text" onclick="hideCompare()">Закрыть</button>
-            <button class="md-button md-button-filled" id="replaceBtn" style="background-color: var(--md-tertiary); color: var(--md-on-tertiary);" onclick="replaceDuplicate()">Заменить оригинал</button>
+            <button class="md-button md-button-outlined" onclick="removeDuplicateStatus()">Сохранить оба</button>
+            <button class="md-button md-button-filled btn-tertiary-filled" id="replaceBtn" onclick="replaceDuplicate()">Заменить оригинал</button>
         </div>
     </div>
 </div>
@@ -287,13 +191,16 @@
         <p>Все файлы будут удалены безвозвратно. Это действие нельзя отменить.</p>
         <div class="confirm-buttons">
             <button class="md-button md-button-text" onclick="hideEmptyConfirm()">Отмена</button>
-            <button class="md-button md-button-filled" style="background-color: var(--md-error); color: var(--md-on-error);" onclick="emptyTrash()">Удалить всё</button>
+            <button class="md-button md-button-filled btn-error-filled" onclick="emptyTrash()">Удалить всё</button>
         </div>
     </div>
 </div>
 {{end}}
 
 {{define "scripts"}}
+// Инициализируем глобальный favSet
+window.favSet = new Set([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
+
 let currentDuplicateId = null;
 let currentOriginalId = null;
 
@@ -304,13 +211,27 @@ function formatSize(bytes) {
 }
 
 function showCompare(dupId, origId, event) {
+    console.log('showCompare called:', { dupId, origId, event });
     event.stopPropagation();
+
     currentDuplicateId = dupId;
     currentOriginalId = origId;
 
-    // Устанавливаем картинки
-    document.getElementById('compareDupImg').src = '/media/' + dupId + '/thumb/large';
-    document.getElementById('compareOrigImg').src = '/media/' + origId + '/thumb/large';
+    // Получаем изображения и очищаем src для показа skeleton
+    const dupImg = document.getElementById('compareDupImg');
+    const origImg = document.getElementById('compareOrigImg');
+
+    // Убираем src и класс loaded чтобы показать skeleton анимацию
+    dupImg.removeAttribute('src');
+    origImg.removeAttribute('src');
+    dupImg.classList.remove('loaded');
+    origImg.classList.remove('loaded');
+    dupImg.style.opacity = '0.7';
+    origImg.style.opacity = '0.7';
+
+    // Запускаем загрузку с retry механизмом
+    loadImageWithRetry(dupImg, '/media/' + dupId + '/thumb/large');
+    loadImageWithRetry(origImg, '/media/' + origId + '/thumb/large');
 
     // Загружаем информацию о файлах
     Promise.all([
@@ -365,13 +286,38 @@ function replaceDuplicate() {
     .catch(err => showToast('Ошибка: ' + err.message, 'error'));
 }
 
+function removeDuplicateStatus() {
+    if (!currentDuplicateId) return;
+
+    if (!confirm('Снять статус дубликата? Фото станет обычным и будет видимым в галерее.')) return;
+
+    fetch('/api/duplicates/unmark', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            media_id: currentDuplicateId
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'unmarked') {
+            hideCompare();
+            showToast('Статус дубликата снят. Фото сохранено.', 'success');
+            setTimeout(() => window.location.reload(), 500);
+        } else {
+            showToast('Ошибка: ' + (data.error || 'неизвестная ошибка'), 'error');
+        }
+    })
+    .catch(err => showToast('Ошибка: ' + err.message, 'error'));
+}
+
 function restoreMedia(id, event) {
     event.stopPropagation();
     fetch('/api/trash/' + id + '/restore', { method: 'POST' })
         .then(r => r.json())
         .then(data => {
             if (data.status === 'restored') {
-                event.target.closest('.trash-card').remove();
+                event.target.closest('.media-card').remove();
                 showToast('Файл восстановлен', 'success');
                 updateCount();
             }
@@ -387,7 +333,7 @@ function deleteMedia(id, event) {
         .then(r => r.json())
         .then(data => {
             if (data.status === 'deleted') {
-                event.target.closest('.trash-card').remove();
+                event.target.closest('.media-card').remove();
                 showToast('Файл удалён навсегда', 'success');
                 updateCount();
             }
@@ -416,9 +362,45 @@ function emptyTrash() {
 }
 
 function updateCount() {
-    const count = document.querySelectorAll('.trash-card').length;
+    const count = document.querySelectorAll('.media-card').length;
     if (count === 0) {
         window.location.reload();
     }
 }
+
+// Очистка кэша миниатюр при загрузке страницы
+async function clearMediaCache() {
+    if ('caches' in window) {
+        try {
+            const cacheNames = await caches.keys();
+            for (const cacheName of cacheNames) {
+                if (cacheName.includes('photocore-media')) {
+                    console.log('[Trash] Clearing media cache:', cacheName);
+                    await caches.delete(cacheName);
+                }
+            }
+            console.log('[Trash] Media cache cleared');
+        } catch (error) {
+            console.warn('[Trash] Failed to clear cache:', error);
+        }
+    }
+}
+
+// Загружает все изображения со страницы используя data-src
+function loadAllThumbnails() {
+    const images = document.querySelectorAll('img[data-src]');
+    console.log('[Trash] Loading', images.length, 'thumbnails');
+
+    images.forEach(img => {
+        const src = img.dataset.src;
+        if (src) {
+            loadImageWithRetry(img, src);
+        }
+    });
+}
+
+// Очищаем кэш и загружаем миниатюры при загрузке страницы
+clearMediaCache().then(() => {
+    loadAllThumbnails();
+});
 {{end}}

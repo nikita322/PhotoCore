@@ -15,6 +15,8 @@ import (
 	"github.com/disintegration/imaging"
 
 	"github.com/photocore/photocore/internal/config"
+	"github.com/photocore/photocore/internal/logger"
+	"github.com/photocore/photocore/internal/scanner"
 	"github.com/photocore/photocore/internal/storage"
 )
 
@@ -72,6 +74,23 @@ func (t *ThumbnailGenerator) GenerateThumbnail(media *storage.Media, size string
 		return thumbPath, nil
 	}
 
+	// Проверяем формат файла перед попыткой обработки
+	formatInfo, err := scanner.DetectFileFormat(media.Path)
+	if err != nil {
+		return "", fmt.Errorf("format detection failed: %w", err)
+	}
+
+	// Если формат не поддерживается - отклоняем
+	if !formatInfo.IsSupported {
+		return "", fmt.Errorf("unsupported format: %s", formatInfo.Error)
+	}
+
+	// Если расширение не совпадает с содержимым - логируем предупреждение, но продолжаем
+	if !formatInfo.IsValid {
+		logger.InfoLog.Printf("WARNING: %s has extension mismatch: claims %s but contains %s (%s)",
+			media.Filename, formatInfo.ClaimedExtension, formatInfo.DetectedExtension, formatInfo.DetectedMIME)
+	}
+
 	// Определяем размер
 	var maxSize int
 	switch size {
@@ -86,7 +105,6 @@ func (t *ThumbnailGenerator) GenerateThumbnail(media *storage.Media, size string
 	}
 
 	var img image.Image
-	var err error
 
 	switch media.Type {
 	case storage.MediaTypeImage:

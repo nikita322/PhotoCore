@@ -1,0 +1,417 @@
+{{/*
+===================================================================
+MEDIA CARD COMPONENT - Переиспользуемый компонент карточки медиа
+===================================================================
+
+Стили для этого компонента определены в блоке media_card_styles ниже.
+Не забудьте включить {{template "media_card_styles"}} в вашем layout!
+
+Параметры (передаются через точку):
+  .Media           - объект медиа (обязательно)
+  .Mode            - режим: "gallery", "trash", "favorites", "album" (по умолчанию "gallery")
+  .ShowFavorite    - показывать кнопку избранного (по умолчанию true)
+  .ShowOverlay     - показывать overlay с именем (по умолчанию true)
+  .OnClick         - JS код для onclick или пусто
+  .CustomActions   - дополнительные кнопки (HTML)
+  .DuplicateOf     - ID оригинала если дубликат
+  .DaysRemaining   - дни до удаления (trash)
+*/}}
+
+{{define "media_card_styles"}}
+/* ===================================================================
+   MEDIA CARD STYLES - Централизованные стили для всех типов карточек
+   =================================================================== */
+
+/* === BASE CARD === */
+.media-card {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background-color: var(--md-surface-container);
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+}
+
+.media-card:hover {
+    transform: scale(1.02);
+}
+
+/* Изображения в карточках */
+.media-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.3s;
+}
+
+/* Состояния загрузки изображений */
+.media-card img.loading { opacity: 0; }
+.media-card img.loaded { opacity: 1; }
+.media-card img.error { opacity: 0.3; }
+
+/* === OVERLAY (название файла при hover) === */
+.media-card .overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: var(--spacing-sm);
+    background: linear-gradient(transparent, var(--md-scrim-heavy));
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.media-card:hover .overlay {
+    opacity: 1;
+}
+
+.media-card .filename {
+    font-size: 0.7rem;
+    color: var(--md-white);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* === BADGES (VIDEO, RAW) === */
+.media-card .badge {
+    position: absolute;
+    top: var(--spacing-sm);
+    left: var(--spacing-sm);
+    padding: 0.2rem 0.4rem;
+    border-radius: var(--radius-xs);
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    background-color: var(--md-scrim-light);
+    color: var(--md-white);
+}
+
+.media-card .badge.video {
+    background-color: var(--md-primary);
+}
+
+.media-card .badge.raw {
+    background-color: var(--md-tertiary);
+}
+
+/* === FAVORITE BADGE === */
+.media-card .favorite-badge {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    z-index: 5;
+    cursor: pointer;
+    filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
+    transition: transform var(--transition-fast);
+}
+
+.media-card .favorite-badge:hover {
+    transform: scale(1.15);
+}
+
+.media-card .favorite-badge svg {
+    width: 20px;
+    height: 20px;
+    fill: var(--md-on-surface-medium);
+    transition: fill var(--transition-fast);
+}
+
+.media-card .favorite-badge.active svg {
+    fill: var(--md-favorite);
+}
+
+/* === REMOVE BUTTON (для альбомов) === */
+.media-card .remove-btn {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: var(--md-scrim-light);
+    display: none;
+}
+
+.media-card:hover .remove-btn {
+    display: flex;
+}
+
+/* === SELECTION MODE (галерея) === */
+body.select-mode .media-card::before {
+    content: '';
+    position: absolute;
+    top: 0.4rem;
+    left: 0.4rem;
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--md-white);
+    border-radius: var(--radius-full);
+    background-color: var(--md-scrim-light);
+    z-index: 10;
+}
+
+body.select-mode .media-card.selected::before {
+    background-color: var(--md-primary);
+    border-color: var(--md-primary);
+}
+
+body.select-mode .media-card.selected::after {
+    content: '\2713';
+    position: absolute;
+    top: 0.4rem;
+    left: 0.4rem;
+    width: 22px;
+    height: 22px;
+    color: var(--md-on-primary);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 11;
+}
+
+/* ===================================================================
+   TRASH MODE - Модификатор для корзины
+   =================================================================== */
+
+/* Переопределения для режима корзины */
+.media-card.trash-mode {
+    overflow: visible; /* Для кнопок restore/delete */
+}
+
+.media-card.trash-mode > img {
+    opacity: 0.7;
+}
+
+.media-card.trash-mode > img.loaded {
+    opacity: 0.7;
+}
+
+.media-card.trash-mode:hover > img.loaded {
+    opacity: 1;
+}
+
+/* Days remaining indicator */
+.trash-days {
+    font-size: 0.7rem;
+    color: var(--md-error);
+    margin-top: 4px;
+}
+
+.trash-days.warning {
+    color: var(--md-warning);
+}
+
+.trash-days.ok {
+    color: var(--text-primary);
+}
+
+/* Trash actions (restore/delete buttons) */
+.trash-actions-card {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    z-index: 10;
+}
+
+.media-card:hover .trash-actions-card {
+    opacity: 1;
+}
+
+.media-card .restore-btn,
+.media-card .delete-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.media-card .restore-btn {
+    background: var(--md-tertiary);
+    color: var(--md-on-tertiary);
+}
+
+.media-card .restore-btn:hover {
+    background: var(--md-tertiary);
+    transform: scale(1.1);
+}
+
+.media-card .delete-btn {
+    background: var(--md-error);
+    color: var(--md-on-error);
+}
+
+.media-card .delete-btn:hover {
+    background: var(--md-error);
+    transform: scale(1.1);
+}
+
+.media-card .restore-btn svg,
+.media-card .delete-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+/* === DUPLICATE BADGE === */
+.duplicate-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: var(--md-warning);
+    color: var(--md-on-tertiary);
+    font-size: 11px;
+    font-weight: bold;
+    padding: 0 6px;
+    height: 20px;
+    border-radius: var(--radius-xs);
+    z-index: 10;
+}
+
+/* ===================================================================
+   IMAGE PLACEHOLDER - Общий для всех типов карточек
+   =================================================================== */
+
+.media-card::before,
+.md-card-media::before {
+    content: '';
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.3;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.media-card:has(img.loaded)::before,
+.media-card:has(img.error)::before,
+.md-card-media:has(img.loaded)::before,
+.md-card-media:has(img.error)::before {
+    display: none;
+}
+
+.media-card:has(img.error)::after,
+.md-card-media:has(img.error)::after {
+    content: '';
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ff6b6b'%3E%3Cpath d='M21.9 21.9l-8.49-8.49-9.82-9.82L2.1 2.1.69 3.51 3 5.83V19c0 1.1.9 2 2 2h13.17l2.31 2.31 1.42-1.41zM5 18l3.5-4.5 2.5 3.01L12.17 15l3 3H5zm16 .17L5.83 3H19c1.1 0 2 .9 2 2v13.17z'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 1;
+}
+{{end}}
+
+{{define "media_card"}}
+{{/*
+Переиспользуемый компонент карточки медиа
+
+Параметры (передаются через точку):
+  .Media           - объект медиа (обязательно)
+  .Mode            - режим: "gallery", "trash", "favorites", "album" (по умолчанию "gallery")
+  .ShowFavorite    - показывать кнопку избранного (по умолчанию true)
+  .ShowOverlay     - показывать overlay с именем (по умолчанию true)
+  .OnClick         - JS код для onclick или пусто
+  .CustomActions   - дополнительные кнопки (HTML)
+  .DuplicateOf     - ID оригинала если дубликат
+  .DaysRemaining   - дни до удаления (trash)
+*/}}
+
+{{$media := .Media}}
+{{$mode := .Mode}}{{if not $mode}}{{$mode = "gallery"}}{{end}}
+{{$showFavorite := true}}{{if eq .ShowFavorite false}}{{$showFavorite = false}}{{end}}
+{{$showOverlay := true}}{{if eq .ShowOverlay false}}{{$showOverlay = false}}{{end}}
+
+{{/* Генерируем onclick автоматически для gallery режима если не передан */}}
+{{$onClick := .OnClick}}
+{{if and (eq $mode "gallery") (not $onClick)}}
+    {{$takenAt := ""}}{{if not $media.TakenAt.IsZero}}{{$takenAt = $media.TakenAt.Format "2006-01-02T15:04:05Z07:00"}}{{end}}
+    {{$meta := ""}}{{if $media.Metadata.Camera}}{{$meta = $media.Metadata.Camera}}{{end}}{{if $media.Metadata.Aperture}}{{$meta = printf "%s • %s" $meta $media.Metadata.Aperture}}{{end}}{{if $media.Metadata.ShutterSpeed}}{{$meta = printf "%s • %s" $meta $media.Metadata.ShutterSpeed}}{{end}}{{if $media.Metadata.ISO}}{{$meta = printf "%s • ISO %s" $meta $media.Metadata.ISO}}{{end}}
+    {{$onClick = printf "console.log('Card clicked:', '%s'); openLightbox('%s', '%s', '%s', '%s')" $media.ID $media.ID $media.Filename $takenAt $meta}}
+{{end}}
+
+<div class="md-card md-card-elevated media-card{{if eq $mode "trash"}} trash-mode{{end}}{{if .ExtraClasses}} {{.ExtraClasses}}{{end}}"
+     data-id="{{$media.ID}}"
+     data-filename="{{$media.Filename}}"
+     {{if not $media.TakenAt.IsZero}}data-taken-at="{{$media.TakenAt.Format "2006-01-02T15:04:05Z07:00"}}"{{end}}
+     {{if $media.Metadata.Camera}}data-meta="{{$media.Metadata.Camera}}{{if $media.Metadata.Aperture}} • {{$media.Metadata.Aperture}}{{end}}{{if $media.Metadata.ShutterSpeed}} • {{$media.Metadata.ShutterSpeed}}{{end}}{{if $media.Metadata.ISO}} • ISO {{$media.Metadata.ISO}}{{end}}"{{end}}
+     {{if $onClick}}onclick="{{$onClick}}"{{end}}>
+
+    {{/* Изображение */}}
+    {{if eq $mode "trash"}}
+        <img data-src="/media/{{$media.ID}}/thumb/small" alt="{{$media.Filename}}" loading="lazy">
+    {{else if eq $mode "gallery"}}
+        <div class="md-card-media" style="aspect-ratio: 1;">
+            <img data-src="/media/{{$media.ID}}/thumb" alt="{{$media.Filename}}" loading="lazy">
+        </div>
+    {{else}}
+        <div class="md-card-media" style="aspect-ratio: 1;">
+            <img src="/media/{{$media.ID}}/thumb/small" alt="{{$media.Filename}}" loading="lazy">
+        </div>
+    {{end}}
+
+    {{/* Бейджи */}}
+    {{if eq $media.Type "video"}}
+        <span class="md-chip badge video">VIDEO</span>
+    {{else if eq $media.Type "raw"}}
+        <span class="md-chip badge raw">RAW</span>
+    {{end}}
+    {{if .DuplicateOf}}
+        <span class="md-chip duplicate-badge">Дубликат</span>
+    {{end}}
+
+    {{/* Кнопка избранного */}}
+    {{if $showFavorite}}
+        <button class="md-icon-button favorite-badge" onclick="toggleFavorite('{{$media.ID}}', event)">
+            {{template "icon-star-filled"}}
+        </button>
+    {{end}}
+
+    {{/* Дополнительные действия */}}
+    {{if .CustomActions}}
+        {{.CustomActions}}
+    {{else if eq $mode "trash"}}
+        <div class="trash-actions-card">
+            <button class="md-icon-button restore-btn" onclick="restoreMedia('{{$media.ID}}', event)" title="Восстановить">
+                {{template "icon-restore"}}
+            </button>
+            <button class="md-icon-button delete-btn" onclick="deleteMedia('{{$media.ID}}', event)" title="Удалить навсегда">
+                {{template "icon-close"}}
+            </button>
+        </div>
+    {{else if eq $mode "album"}}
+        <button class="md-icon-button remove-btn" onclick="removeFromAlbum('{{$media.ID}}', event)" title="Удалить из альбома">
+            {{template "icon-close"}}
+        </button>
+    {{end}}
+
+    {{/* Overlay */}}
+    {{if $showOverlay}}
+        <div class="overlay">
+            {{if eq $mode "trash"}}
+                {{if .DaysRemaining}}
+                    <div class="trash-days {{if le .DaysRemaining 3}}warning{{else if le .DaysRemaining 7}}warning{{else}}ok{{end}}">
+                        {{if le .DaysRemaining 0}}Будет удалено сегодня{{else}}Осталось {{.DaysRemaining}} дн.{{end}}
+                    </div>
+                {{end}}
+            {{else}}
+                <div class="filename">{{$media.Filename}}</div>
+            {{end}}
+        </div>
+    {{end}}
+</div>
+{{end}}
