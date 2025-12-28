@@ -1,7 +1,8 @@
 {{define "title"}}Галерея - PhotoCore{{end}}
 
 {{define "head"}}
-<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<script src="/static/js/htmx.min.js?v={{.BuildVersion}}"></script>
+<script src="/static/js/lightbox.js?v={{.BuildVersion}}"></script>
 {{end}}
 
 {{define "body_attrs"}}data-role="{{.Role}}" data-is-admin="{{.IsAdmin}}" data-can-edit="{{.CanEdit}}"{{end}}
@@ -465,15 +466,6 @@ body.select-mode .media-card.selected::after {
         <div class="progress" id="queue-progress" style="width: 0%"></div>
     </div>
 </div>
-{{end}}
-
-{{/* Включаем lightbox компонент из base.html */}}
-{{define "lightbox"}}
-{{template "lightbox_html" .}}
-{{end}}
-
-{{define "lightbox_scripts"}}
-{{template "lightbox_js" .}}
 {{end}}
 
 {{define "modals"}}

@@ -39,6 +39,7 @@ type Handlers struct {
 	cache         *cache.MediaCache
 	workerPool    *worker.Pool
 	thumbService  *worker.ThumbnailService
+	buildVersion  string // Версия сборки для cache busting
 }
 
 // NewHandlers создает новый экземпляр обработчиков
@@ -52,6 +53,7 @@ func NewHandlers(
 	mediaCache *cache.MediaCache,
 	workerPool *worker.Pool,
 	thumbService *worker.ThumbnailService,
+	buildVersion string,
 ) *Handlers {
 	return &Handlers{
 		cfg:           cfg,
@@ -63,12 +65,17 @@ func NewHandlers(
 		cache:         mediaCache,
 		workerPool:    workerPool,
 		thumbService:  thumbService,
+		buildVersion:  buildVersion,
 	}
 }
 
 // baseData возвращает общие данные для шаблонов (сессия, права)
 func (h *Handlers) baseData(r *http.Request) map[string]interface{} {
 	data := make(map[string]interface{})
+
+	// Версия сборки для cache busting статических файлов
+	data["BuildVersion"] = h.buildVersion
+
 	if session := auth.GetSession(r); session != nil {
 		data["Username"] = session.Username
 		data["Role"] = session.Role

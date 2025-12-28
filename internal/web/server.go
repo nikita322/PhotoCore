@@ -40,6 +40,7 @@ type Server struct {
 	cache         *cache.MediaCache
 	workerPool    *worker.Pool
 	thumbService  *worker.ThumbnailService
+	buildVersion  string // Версия сборки для cache busting статических файлов
 }
 
 // NewServer создает новый веб-сервер
@@ -53,6 +54,7 @@ func NewServer(
 	mediaCache *cache.MediaCache,
 	workerPool *worker.Pool,
 	thumbService *worker.ThumbnailService,
+	buildVersion string,
 ) (*Server, error) {
 	// Template functions
 	funcMap := template.FuncMap{
@@ -146,6 +148,7 @@ func NewServer(
 		cache:         mediaCache,
 		workerPool:    workerPool,
 		thumbService:  thumbService,
+		buildVersion:  buildVersion,
 	}
 
 	s.setupRoutes()
@@ -199,7 +202,7 @@ func (s *Server) setupRoutes() {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	// Создаем handlers
-	h := handlers.NewHandlers(s.cfg, s.store, s.scanner, s.thumbGen, s.auth, s.pageTemplates, s.cache, s.workerPool, s.thumbService)
+	h := handlers.NewHandlers(s.cfg, s.store, s.scanner, s.thumbGen, s.auth, s.pageTemplates, s.cache, s.workerPool, s.thumbService, s.buildVersion)
 
 	// Статические файлы
 	staticHandler := http.FileServer(http.FS(s.staticFS))

@@ -1,5 +1,9 @@
 {{define "title"}}Корзина - PhotoCore{{end}}
 
+{{define "head"}}
+<script src="/static/js/lightbox.js?v={{.BuildVersion}}"></script>
+{{end}}
+
 {{define "styles"}}
 /* Trash page specific styles */
 /* (Card styles are now in media_card_styles component) */
@@ -139,15 +143,7 @@
 
     <div class="grid">
         {{range .TrashItems}}
-        {{$onClick := ""}}
-        {{if .DuplicateOf}}
-            {{$onClick = printf "console.log('Trash card clicked:', '%s', '%s'); showCompare('%s', '%s', event)" .ID .DuplicateOf .ID .DuplicateOf}}
-        {{else}}
-            {{$takenAt := ""}}{{if not .TakenAt.IsZero}}{{$takenAt = .TakenAt.Format "2006-01-02T15:04:05Z07:00"}}{{end}}
-            {{$meta := ""}}{{if .Metadata.Camera}}{{$meta = .Metadata.Camera}}{{end}}{{if .Metadata.Aperture}}{{$meta = printf "%s • %s" $meta .Metadata.Aperture}}{{end}}{{if .Metadata.ShutterSpeed}}{{$meta = printf "%s • %s" $meta .Metadata.ShutterSpeed}}{{end}}{{if .Metadata.ISO}}{{$meta = printf "%s • ISO %s" $meta .Metadata.ISO}}{{end}}
-            {{$onClick = printf "console.log('Trash card clicked:', '%s'); openLightbox('%s', '%s', '%s', '%s')" .ID .ID .Filename $takenAt $meta}}
-        {{end}}
-        {{template "media_card" (dict "Media" . "Mode" "trash" "DuplicateOf" .DuplicateOf "DaysRemaining" .DaysRemaining "OnClick" $onClick "ShowFavorite" false)}}
+        {{template "media_card" (dict "Media" . "Mode" "trash" "DuplicateOf" .DuplicateOf "DaysRemaining" .DaysRemaining "ShowFavorite" false)}}
         {{end}}
     </div>
     {{else}}
@@ -210,7 +206,7 @@ function formatSize(bytes) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-function showCompare(dupId, origId, event) {
+window.showCompare = function(dupId, origId, event) {
     console.log('showCompare called:', { dupId, origId, event });
     event.stopPropagation();
 
@@ -254,13 +250,13 @@ function showCompare(dupId, origId, event) {
     document.getElementById('compareModal').classList.add('active');
 }
 
-function hideCompare() {
+window.hideCompare = function() {
     document.getElementById('compareModal').classList.remove('active');
     currentDuplicateId = null;
     currentOriginalId = null;
 }
 
-function replaceDuplicate() {
+window.replaceDuplicate = function() {
     if (!currentDuplicateId || !currentOriginalId) return;
 
     if (!confirm('Заменить оригинал на дубликат? Оригинал будет перемещён в корзину.')) return;
@@ -286,7 +282,7 @@ function replaceDuplicate() {
     .catch(err => showToast('Ошибка: ' + err.message, 'error'));
 }
 
-function removeDuplicateStatus() {
+window.removeDuplicateStatus = function() {
     if (!currentDuplicateId) return;
 
     if (!confirm('Снять статус дубликата? Фото станет обычным и будет видимым в галерее.')) return;
@@ -311,7 +307,7 @@ function removeDuplicateStatus() {
     .catch(err => showToast('Ошибка: ' + err.message, 'error'));
 }
 
-function restoreMedia(id, event) {
+window.restoreMedia = function(id, event) {
     event.stopPropagation();
     fetch('/api/trash/' + id + '/restore', { method: 'POST' })
         .then(r => r.json())
@@ -325,7 +321,7 @@ function restoreMedia(id, event) {
         .catch(err => showToast('Ошибка: ' + err.message, 'error'));
 }
 
-function deleteMedia(id, event) {
+window.deleteMedia = function(id, event) {
     event.stopPropagation();
     if (!confirm('Удалить файл безвозвратно?')) return;
 
@@ -341,15 +337,15 @@ function deleteMedia(id, event) {
         .catch(err => showToast('Ошибка: ' + err.message, 'error'));
 }
 
-function showEmptyConfirm() {
+window.showEmptyConfirm = function() {
     document.getElementById('emptyConfirm').classList.add('active');
 }
 
-function hideEmptyConfirm() {
+window.hideEmptyConfirm = function() {
     document.getElementById('emptyConfirm').classList.remove('active');
 }
 
-function emptyTrash() {
+window.emptyTrash = function() {
     fetch('/api/trash', { method: 'DELETE' })
         .then(r => r.json())
         .then(data => {

@@ -1,0 +1,55 @@
+# PhotoCore Air Configuration для Docker
+# Автоматическая пересборка внутри контейнера
+
+root = "/src"
+testdata_dir = "testdata"
+tmp_dir = "/src/tmp"
+
+[build]
+  args_bin = []
+  # Команда сборки с автоматическим timestamp для Docker
+  cmd = "BUILD_VERSION=$(date +%s) && go build -ldflags \"-w -s -X main.BuildVersion=$BUILD_VERSION\" -o /app/photocore ./cmd/photocore"
+  delay = 1000
+  # Бинарник в /app
+  bin = "/app/photocore"
+  # Исключить из сборки
+  exclude_dir = ["assets", "tmp", "vendor", "testdata", "data", "logs", "thumbnails", "cmd/photocore/static"]
+  exclude_file = []
+  # Расширения файлов для отслеживания
+  exclude_regex = ["_test.go"]
+  exclude_unchanged = false
+  follow_symlink = false
+  full_bin = ""
+  include_dir = []
+  # Отслеживаем Go и HTML файлы
+  include_ext = ["go", "tpl", "tmpl", "html"]
+  include_file = []
+  kill_delay = "0s"
+  log = "/src/tmp/build-errors.log"
+  # Polling для Docker volumes (fsnotify может не работать)
+  poll = true
+  poll_interval = 1000
+  post_cmd = []
+  pre_cmd = []
+  rerun = false
+  rerun_delay = 500
+  send_interrupt = false
+  stop_on_error = false
+
+[color]
+  app = ""
+  build = "yellow"
+  main = "magenta"
+  runner = "green"
+  watcher = "cyan"
+
+[log]
+  main_only = false
+  time = false
+
+[misc]
+  clean_on_exit = false
+
+[screen]
+  clear_on_rebuild = true
+  keep_scroll = true

@@ -1,7 +1,8 @@
 {{define "title"}}Поиск - PhotoCore{{end}}
 
 {{define "head"}}
-<script src="/static/js/htmx.min.js"></script>
+<script src="/static/js/htmx.min.js?v={{.BuildVersion}}"></script>
+<script src="/static/js/lightbox.js?v={{.BuildVersion}}"></script>
 {{end}}
 
 {{define "styles"}}

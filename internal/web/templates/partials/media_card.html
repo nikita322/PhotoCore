@@ -336,20 +336,17 @@ body.select-mode .media-card.selected::after {
 {{$showFavorite := true}}{{if eq .ShowFavorite false}}{{$showFavorite = false}}{{end}}
 {{$showOverlay := true}}{{if eq .ShowOverlay false}}{{$showOverlay = false}}{{end}}
 
-{{/* Генерируем onclick автоматически для gallery режима если не передан */}}
+{{/* Подготавливаем данные для onclick */}}
 {{$onClick := .OnClick}}
-{{if and (eq $mode "gallery") (not $onClick)}}
-    {{$takenAt := ""}}{{if not $media.TakenAt.IsZero}}{{$takenAt = $media.TakenAt.Format "2006-01-02T15:04:05Z07:00"}}{{end}}
-    {{$meta := ""}}{{if $media.Metadata.Camera}}{{$meta = $media.Metadata.Camera}}{{end}}{{if $media.Metadata.Aperture}}{{$meta = printf "%s • %s" $meta $media.Metadata.Aperture}}{{end}}{{if $media.Metadata.ShutterSpeed}}{{$meta = printf "%s • %s" $meta $media.Metadata.ShutterSpeed}}{{end}}{{if $media.Metadata.ISO}}{{$meta = printf "%s • ISO %s" $meta $media.Metadata.ISO}}{{end}}
-    {{$onClick = printf "console.log('Card clicked:', '%s'); openLightbox('%s', '%s', '%s', '%s')" $media.ID $media.ID $media.Filename $takenAt $meta}}
-{{end}}
+{{$takenAt := ""}}{{if not $media.TakenAt.IsZero}}{{$takenAt = $media.TakenAt.Format "2006-01-02T15:04:05Z07:00"}}{{end}}
+{{$meta := ""}}{{if $media.Metadata.Camera}}{{$meta = $media.Metadata.Camera}}{{end}}{{if $media.Metadata.Aperture}}{{$meta = printf "%s • %s" $meta $media.Metadata.Aperture}}{{end}}{{if $media.Metadata.ShutterSpeed}}{{$meta = printf "%s • %s" $meta $media.Metadata.ShutterSpeed}}{{end}}{{if $media.Metadata.ISO}}{{$meta = printf "%s • ISO %s" $meta $media.Metadata.ISO}}{{end}}
 
-<div class="md-card md-card-elevated media-card{{if eq $mode "trash"}} trash-mode{{end}}{{if .ExtraClasses}} {{.ExtraClasses}}{{end}}"
+<div class="md-card md-card-elevated media-card{{if eq $mode "gallery"}} clickable{{end}}{{if eq $mode "trash"}} trash-mode{{end}}{{if .ExtraClasses}} {{.ExtraClasses}}{{end}}"
      data-id="{{$media.ID}}"
      data-filename="{{$media.Filename}}"
-     {{if not $media.TakenAt.IsZero}}data-taken-at="{{$media.TakenAt.Format "2006-01-02T15:04:05Z07:00"}}"{{end}}
-     {{if $media.Metadata.Camera}}data-meta="{{$media.Metadata.Camera}}{{if $media.Metadata.Aperture}} • {{$media.Metadata.Aperture}}{{end}}{{if $media.Metadata.ShutterSpeed}} • {{$media.Metadata.ShutterSpeed}}{{end}}{{if $media.Metadata.ISO}} • ISO {{$media.Metadata.ISO}}{{end}}"{{end}}
-     {{if $onClick}}onclick="{{$onClick}}"{{end}}>
+     {{if not $media.TakenAt.IsZero}}data-taken-at="{{$takenAt}}"{{end}}
+     {{if $meta}}data-meta="{{$meta}}"{{end}}
+     {{if $onClick}}onclick="{{$onClick}}"{{else if eq $mode "gallery"}}onclick="openLightbox('{{$media.ID}}', '{{$media.Filename}}', '{{$takenAt}}', '{{$meta}}')"{{else if and (eq $mode "trash") .DuplicateOf}}onclick="showCompare('{{$media.ID}}', '{{.DuplicateOf}}', event)"{{else if eq $mode "trash"}}onclick="openLightbox('{{$media.ID}}', '{{$media.Filename}}', '{{$takenAt}}', '{{$meta}}')"{{end}}>
 
     {{/* Изображение */}}
     {{if eq $mode "trash"}}

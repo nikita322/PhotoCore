@@ -1,5 +1,9 @@
 {{define "title"}}{{.Album.Name}} - PhotoCore{{end}}
 
+{{define "head"}}
+<script src="/static/js/lightbox.js?v={{.BuildVersion}}"></script>
+{{end}}
+
 {{define "styles"}}
 /* Album page specific styles */
 .album-info h1 {
