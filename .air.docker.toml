@@ -21,8 +21,8 @@ tmp_dir = "/src/tmp"
   follow_symlink = false
   full_bin = ""
   include_dir = []
-  # Отслеживаем Go и HTML файлы
-  include_ext = ["go", "tpl", "tmpl", "html"]
+  # Отслеживаем Go, HTML и JS файлы
+  include_ext = ["go", "tpl", "tmpl", "html", "js", "css"]
   include_file = []
   kill_delay = "0s"
   log = "/src/tmp/build-errors.log"
