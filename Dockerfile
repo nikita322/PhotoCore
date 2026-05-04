@@ -22,7 +22,7 @@ RUN curl -sL -o /tmp/dcraw.c https://raw.githubusercontent.com/ncruces/dcraw/mas
 # Runtime stage
 FROM docker.io/alpine:latest
 
-RUN apk add --no-cache ffmpeg tzdata ca-certificates bash
+RUN apk add --no-cache ffmpeg tzdata ca-certificates bash jasper
 RUN mkdir -p /app /data /thumbs /media
 
 WORKDIR /app
