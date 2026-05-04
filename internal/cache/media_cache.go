@@ -8,14 +8,9 @@ import (
 
 // MediaCache специализированный кэш для медиа-данных
 type MediaCache struct {
-	// Кэш метаданных медиа
-	mediaCache *Cache
-
-	// Кэш списков медиа по директориям
-	dirCache *Cache
-
-	// Кэш статистики
-	statsCache *Cache
+	mediaCache *Cache[*storage.Media]
+	dirCache   *Cache[[]*storage.Media]
+	statsCache *Cache[*storage.Stats]
 }
 
 const (
@@ -27,17 +22,17 @@ const (
 // NewMediaCache создает новый медиа-кэш
 func NewMediaCache() *MediaCache {
 	return &MediaCache{
-		mediaCache: New(Config{
+		mediaCache: New(Config[*storage.Media]{
 			DefaultExpiration: 10 * time.Minute,
 			CleanupInterval:   5 * time.Minute,
 			MaxItems:          5000,
 		}),
-		dirCache: New(Config{
+		dirCache: New(Config[[]*storage.Media]{
 			DefaultExpiration: 2 * time.Minute,
 			CleanupInterval:   1 * time.Minute,
 			MaxItems:          500,
 		}),
-		statsCache: New(Config{
+		statsCache: New(Config[*storage.Stats]{
 			DefaultExpiration: 30 * time.Second,
 			CleanupInterval:   1 * time.Minute,
 			MaxItems:          10,
@@ -47,14 +42,7 @@ func NewMediaCache() *MediaCache {
 
 // GetMedia получает медиа из кэша
 func (mc *MediaCache) GetMedia(id string) (*storage.Media, bool) {
-	val, found := mc.mediaCache.Get(mediaCachePrefix + id)
-	if !found {
-		return nil, false
-	}
-	if media, ok := val.(*storage.Media); ok {
-		return media, true
-	}
-	return nil, false
+	return mc.mediaCache.Get(mediaCachePrefix + id)
 }
 
 // SetMedia сохраняет медиа в кэш
@@ -69,14 +57,7 @@ func (mc *MediaCache) DeleteMedia(id string) {
 
 // GetMediaByDir получает список медиа для директории
 func (mc *MediaCache) GetMediaByDir(dir string) ([]*storage.Media, bool) {
-	val, found := mc.dirCache.Get(dirCachePrefix + dir)
-	if !found {
-		return nil, false
-	}
-	if media, ok := val.([]*storage.Media); ok {
-		return media, true
-	}
-	return nil, false
+	return mc.dirCache.Get(dirCachePrefix + dir)
 }
 
 // SetMediaByDir сохраняет список медиа для директории
@@ -91,14 +72,7 @@ func (mc *MediaCache) InvalidateDir(dir string) {
 
 // GetStats получает статистику из кэша
 func (mc *MediaCache) GetStats() (*storage.Stats, bool) {
-	val, found := mc.statsCache.Get(statsCacheKey)
-	if !found {
-		return nil, false
-	}
-	if stats, ok := val.(*storage.Stats); ok {
-		return stats, true
-	}
-	return nil, false
+	return mc.statsCache.Get(statsCacheKey)
 }
 
 // SetStats сохраняет статистику в кэш

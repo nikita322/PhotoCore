@@ -13,8 +13,6 @@ import (
 	"github.com/photocore/photocore/internal/storage"
 )
 
-const defaultDuplicateSimilarityThreshold = 10
-
 // Scanner сканирует файловую систему для поиска медиа-файлов
 type Scanner struct {
 	cfg   *config.Config
@@ -227,7 +225,7 @@ func (s *Scanner) scan() {
 			// Гибридный подход: 1) размер ±10%, 2) SHA256, 3) pHash
 			if existing == nil {
 				isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
-				dupResult, err := s.store.CheckDuplicate(media.Size, media.Checksum, media.ImageHash, isImage, defaultDuplicateSimilarityThreshold)
+				dupResult, err := s.store.CheckDuplicate(media.Size, media.Checksum, media.ImageHash, isImage, storage.DefaultDuplicateSimilarityThreshold)
 				if err != nil {
 					logger.InfoLog.Printf("Error checking duplicates for %s: %v", path, err)
 				} else if dupResult.IsDuplicate {

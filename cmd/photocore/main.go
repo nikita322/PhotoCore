@@ -31,11 +31,10 @@ var staticFS embed.FS
 var BuildVersion = "dev"
 
 const (
-	defaultDirPerm                      = os.FileMode(0755)
-	workerPoolSizeAuto                  = 0
-	workerQueueSize                     = 1000
-	trashCleanupHours                   = 24
-	defaultDuplicateSimilarityThreshold = 10
+	defaultDirPerm     = storage.DefaultDirPerm
+	workerPoolSizeAuto = 0
+	workerQueueSize    = 1000
+	trashCleanupHours  = 24
 )
 
 func main() {
@@ -310,7 +309,7 @@ func handleFileEvent(event scanner.FileEvent, cfg *config.Config, store *storage
 		// Гибридный подход: 1) размер ±10%, 2) SHA256, 3) pHash
 		if existingMedia == nil {
 			isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
-			dupResult, err := store.CheckDuplicate(m.Size, m.Checksum, m.ImageHash, isImage, defaultDuplicateSimilarityThreshold)
+			dupResult, err := store.CheckDuplicate(m.Size, m.Checksum, m.ImageHash, isImage, storage.DefaultDuplicateSimilarityThreshold)
 			if err != nil {
 				logger.InfoLog.Printf("Watcher: failed to check duplicates for %s: %v", event.Path, err)
 			} else if dupResult.IsDuplicate {
@@ -402,7 +401,7 @@ func cleanupTrash(store *storage.Store, thumbGen *media.ThumbnailGenerator) {
 		return
 	}
 
-	const retentionDays = 30
+	const retentionDays = storage.TrashRetentionDays
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)
 	var deleted int
 

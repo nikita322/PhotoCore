@@ -6,54 +6,62 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Config представляет полную конфигурацию приложения
 type Config struct {
-	Server     ServerConfig     `yaml:"server"`
-	Storage    StorageConfig    `yaml:"storage"`
-	Thumbnails ThumbnailsConfig `yaml:"thumbnails"`
-	Auth       AuthConfig       `yaml:"auth"`
-	Scan       ScanConfig       `yaml:"scan"`
-	Tools      ToolsConfig      `yaml:"tools"`
+	Server     ServerConfig     `yaml:"server"`     // Настройки HTTP-сервера
+	Storage    StorageConfig    `yaml:"storage"`    // Пути к медиа, кэшу, БД и логам
+	Thumbnails ThumbnailsConfig `yaml:"thumbnails"` // Размеры и качество превью
+	Auth       AuthConfig       `yaml:"auth"`       // Аутентификация и сессии
+	Scan       ScanConfig       `yaml:"scan"`       // Расширения файлов для сканирования
+	Tools      ToolsConfig      `yaml:"tools"`      // Внешние утилиты (dcraw, ffmpeg)
 }
 
+// ServerConfig содержит настройки HTTP-сервера
 type ServerConfig struct {
-	Host string `yaml:"host"`
-	Port int    `yaml:"port"`
+	Host string `yaml:"host"` // Адрес привязки (0.0.0.0 для всех интерфейсов)
+	Port int    `yaml:"port"` // Порт сервера
 }
 
+// StorageConfig содержит пути к хранилищам данных
 type StorageConfig struct {
-	MediaPaths []string `yaml:"media_paths"`
-	CachePath  string   `yaml:"cache_path"`
-	DBPath     string   `yaml:"db_path"`
-	LogsPath   string   `yaml:"logs_path"`
+	MediaPaths []string `yaml:"media_paths"` // Пути к медиафайлам
+	CachePath  string   `yaml:"cache_path"`  // Путь к кэшу превью
+	DBPath     string   `yaml:"db_path"`     // Путь к файлу БД BoltDB
+	LogsPath   string   `yaml:"logs_path"`   // Путь к директории логов
 }
 
+// ThumbnailsConfig содержит настройки генерации превью
 type ThumbnailsConfig struct {
-	Small   int `yaml:"small"`
-	Medium  int `yaml:"medium"`
-	Large   int `yaml:"large"`
-	Quality int `yaml:"quality"` // JPEG quality (0-100)
+	Small   int `yaml:"small"`   // Ширина маленького превью (px)
+	Medium  int `yaml:"medium"`  // Ширина среднего превью (px)
+	Large   int `yaml:"large"`   // Ширина большого превью (px)
+	Quality int `yaml:"quality"` // Качество JPEG (0-100)
 }
 
+// AuthConfig содержит настройки аутентификации
 type AuthConfig struct {
-	SessionSecret string `yaml:"session_secret"`
-	SessionMaxAge int    `yaml:"session_max_age"`
-	AdminUsername string `yaml:"admin_username"`
-	AdminPassword string `yaml:"admin_password"`
+	SessionSecret string `yaml:"session_secret"`  // Секрет для подписи сессий
+	SessionMaxAge int    `yaml:"session_max_age"` // Время жизни сессии в секундах
+	AdminUsername string `yaml:"admin_username"`  // Логин администратора по умолчанию
+	AdminPassword string `yaml:"admin_password"`  // Пароль администратора по умолчанию
 }
 
+// ScanConfig содержит настройки сканирования файлов
 type ScanConfig struct {
-	Extensions ExtensionsConfig `yaml:"extensions"`
+	Extensions ExtensionsConfig `yaml:"extensions"` // Расширения по типам медиа
 }
 
+// ExtensionsConfig содержит списки расширений файлов
 type ExtensionsConfig struct {
-	Images []string `yaml:"images"`
-	Videos []string `yaml:"videos"`
-	Raw    []string `yaml:"raw"`
+	Images []string `yaml:"images"` // Расширения изображений
+	Videos []string `yaml:"videos"` // Расширения видео
+	Raw    []string `yaml:"raw"`    // Расширения RAW-файлов
 }
 
+// ToolsConfig содержит пути к внешним утилитам
 type ToolsConfig struct {
-	Dcraw  string `yaml:"dcraw"`
-	Ffmpeg string `yaml:"ffmpeg"`
+	Dcraw  string `yaml:"dcraw"`  // Путь к dcraw (для RAW)
+	Ffmpeg string `yaml:"ffmpeg"` // Путь к ffmpeg (для видео)
 }
 
 // Load читает конфигурацию из YAML-файла

@@ -5,37 +5,37 @@ import (
 	"time"
 )
 
-// Item представляет элемент кэша
-type Item struct {
-	Value      interface{}
+// Item представляет элемент кэша с типизированным значением
+type Item[T any] struct {
+	Value      T
 	Expiration int64
 }
 
 // IsExpired проверяет, истек ли срок жизни элемента
-func (i *Item) IsExpired() bool {
+func (i *Item[T]) IsExpired() bool {
 	if i.Expiration == 0 {
 		return false
 	}
 	return time.Now().UnixNano() > i.Expiration
 }
 
-// Cache представляет in-memory кэш с TTL
-type Cache struct {
-	items             map[string]*Item
+// Cache представляет типизированный in-memory кэш с TTL
+type Cache[T any] struct {
+	items             map[string]*Item[T]
 	mu                sync.RWMutex
 	defaultExpiration time.Duration
 	cleanupInterval   time.Duration
 	stopCleanup       chan struct{}
 	maxItems          int
-	onEvicted         func(key string, value interface{})
+	onEvicted         func(key string, value T)
 }
 
 // Config конфигурация кэша
-type Config struct {
+type Config[T any] struct {
 	DefaultExpiration time.Duration
 	CleanupInterval   time.Duration
 	MaxItems          int
-	OnEvicted         func(key string, value interface{})
+	OnEvicted         func(key string, value T)
 }
 
 const (
@@ -44,8 +44,8 @@ const (
 	defaultMaxItems        = 10000
 )
 
-// New создает новый кэш
-func New(config Config) *Cache {
+// New создает новый типизированный кэш
+func New[T any](config Config[T]) *Cache[T] {
 	if config.DefaultExpiration == 0 {
 		config.DefaultExpiration = defaultExpiration
 	}
@@ -56,8 +56,8 @@ func New(config Config) *Cache {
 		config.MaxItems = defaultMaxItems
 	}
 
-	c := &Cache{
-		items:             make(map[string]*Item),
+	c := &Cache[T]{
+		items:             make(map[string]*Item[T]),
 		defaultExpiration: config.DefaultExpiration,
 		cleanupInterval:   config.CleanupInterval,
 		stopCleanup:       make(chan struct{}),
@@ -71,12 +71,12 @@ func New(config Config) *Cache {
 }
 
 // Set добавляет элемент в кэш с TTL по умолчанию
-func (c *Cache) Set(key string, value interface{}) {
+func (c *Cache[T]) Set(key string, value T) {
 	c.SetWithTTL(key, value, c.defaultExpiration)
 }
 
 // SetWithTTL добавляет элемент с указанным TTL
-func (c *Cache) SetWithTTL(key string, value interface{}, ttl time.Duration) {
+func (c *Cache[T]) SetWithTTL(key string, value T, ttl time.Duration) {
 	var expiration int64
 	if ttl > 0 {
 		expiration = time.Now().Add(ttl).UnixNano()
@@ -85,44 +85,46 @@ func (c *Cache) SetWithTTL(key string, value interface{}, ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Проверяем лимит и удаляем старые элементы если нужно
 	if len(c.items) >= c.maxItems {
 		c.evictOldest()
 	}
 
-	c.items[key] = &Item{
+	c.items[key] = &Item[T]{
 		Value:      value,
 		Expiration: expiration,
 	}
 }
 
 // Get получает элемент из кэша
-func (c *Cache) Get(key string) (interface{}, bool) {
+func (c *Cache[T]) Get(key string) (T, bool) {
 	c.mu.RLock()
 	item, found := c.items[key]
 	c.mu.RUnlock()
 
 	if !found {
-		return nil, false
+		var zero T
+		return zero, false
 	}
 
 	if item.IsExpired() {
 		c.Delete(key)
-		return nil, false
+		var zero T
+		return zero, false
 	}
 
 	return item.Value, true
 }
 
 // GetOrSet получает элемент или создает новый через функцию
-func (c *Cache) GetOrSet(key string, fn func() (interface{}, error)) (interface{}, error) {
+func (c *Cache[T]) GetOrSet(key string, fn func() (T, error)) (T, error) {
 	if val, found := c.Get(key); found {
 		return val, nil
 	}
 
 	val, err := fn()
 	if err != nil {
-		return nil, err
+		var zero T
+		return zero, err
 	}
 
 	c.Set(key, val)
@@ -130,7 +132,7 @@ func (c *Cache) GetOrSet(key string, fn func() (interface{}, error)) (interface{
 }
 
 // Delete удаляет элемент из кэша
-func (c *Cache) Delete(key string) {
+func (c *Cache[T]) Delete(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -143,7 +145,7 @@ func (c *Cache) Delete(key string) {
 }
 
 // Clear очищает кэш
-func (c *Cache) Clear() {
+func (c *Cache[T]) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -153,18 +155,18 @@ func (c *Cache) Clear() {
 		}
 	}
 
-	c.items = make(map[string]*Item)
+	c.items = make(map[string]*Item[T])
 }
 
 // Count возвращает количество элементов в кэше
-func (c *Cache) Count() int {
+func (c *Cache[T]) Count() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return len(c.items)
 }
 
 // Keys возвращает все ключи
-func (c *Cache) Keys() []string {
+func (c *Cache[T]) Keys() []string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -176,12 +178,19 @@ func (c *Cache) Keys() []string {
 }
 
 // Stop останавливает фоновую очистку
-func (c *Cache) Stop() {
+func (c *Cache[T]) Stop() {
 	close(c.stopCleanup)
 }
 
+// CacheStats статистика кэша
+type CacheStats struct {
+	Items        int `json:"items"`
+	MaxItems     int `json:"max_items"`
+	ExpiredItems int `json:"expired_items"`
+}
+
 // Stats возвращает статистику кэша
-func (c *Cache) Stats() CacheStats {
+func (c *Cache[T]) Stats() CacheStats {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -199,14 +208,7 @@ func (c *Cache) Stats() CacheStats {
 	}
 }
 
-// CacheStats статистика кэша
-type CacheStats struct {
-	Items        int `json:"items"`
-	MaxItems     int `json:"max_items"`
-	ExpiredItems int `json:"expired_items"`
-}
-
-func (c *Cache) cleanupLoop() {
+func (c *Cache[T]) cleanupLoop() {
 	ticker := time.NewTicker(c.cleanupInterval)
 	defer ticker.Stop()
 
@@ -220,7 +222,7 @@ func (c *Cache) cleanupLoop() {
 	}
 }
 
-func (c *Cache) deleteExpired() {
+func (c *Cache[T]) deleteExpired() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -234,9 +236,7 @@ func (c *Cache) deleteExpired() {
 	}
 }
 
-func (c *Cache) evictOldest() {
-	// Простая стратегия: удаляем первый найденный просроченный
-	// или любой элемент если просроченных нет
+func (c *Cache[T]) evictOldest() {
 	var keyToDelete string
 
 	for key, item := range c.items {

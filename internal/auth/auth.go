@@ -140,7 +140,7 @@ func (a *Auth) EnsureAdminUser() error {
 	}
 
 	user = &storage.User{
-		ID:           generateID(),
+		ID:           generateRandomID(),
 		Username:     a.cfg.Auth.AdminUsername,
 		PasswordHash: string(hash),
 		Role:         storage.RoleAdmin,
@@ -176,7 +176,7 @@ func (a *Auth) Login(username, password string) (*storage.Session, error) {
 
 	// Создаем сессию
 	session := &storage.Session{
-		ID:        generateID(),
+		ID:        generateRandomID(),
 		UserID:    user.ID,
 		Username:  user.Username,
 		Role:      user.Role,
@@ -291,7 +291,7 @@ func (a *Auth) RequireRole(roles ...storage.Role) func(http.Handler) http.Handle
 	}
 }
 
-func generateID() string {
+func generateRandomID() string {
 	bytes := make([]byte, 16)
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)

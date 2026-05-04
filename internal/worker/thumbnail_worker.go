@@ -108,7 +108,7 @@ func (s *ThumbnailService) PregenerateThumbnails() error {
 	queued := 0
 	for _, m := range allMedia {
 		// Проверяем, существует ли превью
-		if !s.thumbGen.ThumbnailExists(m.ID, "small") {
+		if !s.thumbGen.ThumbnailExists(m.ID, media.ThumbnailSizeSmall) {
 			if s.QueueThumbnail(m.ID, "small") {
 				queued++
 			}
