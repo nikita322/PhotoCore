@@ -1450,6 +1450,7 @@ async function loadImageWithRetry(img, src, retryCount = 0, maxRetries = 15) {
 
     <title>{{block "title" .}}PhotoCore{{end}}</title>
     {{template "favicon" .}}
+    <script src="/static/js/common.js?v={{.BuildVersion}}"></script>
     {{block "head" .}}{{end}}
     <style>
         {{template "base_styles"}}

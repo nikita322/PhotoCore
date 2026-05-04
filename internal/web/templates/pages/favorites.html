@@ -11,7 +11,7 @@
 {{define "content"}}
 <main class="main">
     <div class="page-header">
-        <h1 class="page-title"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="gold"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg> Избранное</h1>
+        <h1 class="page-title">{{template "icon-star-filled"}} Избранное</h1>
     </div>
 
     {{if .Media}}
@@ -21,22 +21,15 @@
         {{end}}
     </div>
     {{else}}
-    <div class="empty-state">
-        <h3>Нет избранных</h3>
-        <p>Нажмите ★ на любом фото, чтобы добавить в избранное</p>
-    </div>
+    {{template "empty_state" (dict "Title" "Нет избранных" "Description" "Нажмите ★ на любом фото, чтобы добавить в избранное")}}
     {{end}}
 </main>
 {{end}}
 
 {{define "scripts"}}
-// Инициализируем глобальный favSet
-window.favSet = new Set([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
-
 // На странице избранного все элементы - избранные
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.favorite-badge').forEach(badge => {
-        badge.classList.add('active');
-    });
+initFavorites([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
+document.querySelectorAll('.favorite-badge').forEach(function(badge) {
+    badge.classList.add('active');
 });
 {{end}}

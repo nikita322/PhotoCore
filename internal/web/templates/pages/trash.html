@@ -120,9 +120,7 @@
 <main class="main">
     <div class="page-header">
         <h1 class="page-title">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-            </svg>
+            {{template "icon-delete"}}
             Корзина
             {{if .TrashCount}}<span class="trash-count">({{.TrashCount}})</span>{{end}}
         </h1>
@@ -147,13 +145,7 @@
         {{end}}
     </div>
     {{else}}
-    <div class="empty-state">
-        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-        </svg>
-        <h3>Корзина пуста</h3>
-        <p>Удалённые файлы появятся здесь</p>
-    </div>
+    {{template "empty_state" (dict "Icon" "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24' fill='currentColor'><path d=\"M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z\"/></svg>" "Title" "Корзина пуста" "Description" "Удалённые файлы появятся здесь")}}
     {{end}}
 </main>
 
@@ -195,16 +187,12 @@
 
 {{define "scripts"}}
 // Инициализируем глобальный favSet
-window.favSet = new Set([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
+initFavorites([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
 
 let currentDuplicateId = null;
 let currentOriginalId = null;
 
-function formatSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
+// formatBytes доступен из lightbox.js
 
 window.showCompare = function(dupId, origId, event) {
     console.log('showCompare called:', { dupId, origId, event });
@@ -237,12 +225,12 @@ window.showCompare = function(dupId, origId, event) {
         document.getElementById('compareDupInfo').innerHTML =
             '<strong>' + dup.filename + '</strong><br>' +
             (dup.width && dup.height ? dup.width + ' × ' + dup.height + '<br>' : '') +
-            formatSize(dup.size);
+            formatBytes(dup.size);
 
         document.getElementById('compareOrigInfo').innerHTML =
             '<strong>' + orig.filename + '</strong><br>' +
             (orig.width && orig.height ? orig.width + ' × ' + orig.height + '<br>' : '') +
-            formatSize(orig.size);
+            formatBytes(orig.size);
     }).catch(err => {
         console.error('Error loading media info:', err);
     });

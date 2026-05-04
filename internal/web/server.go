@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -90,6 +91,7 @@ func NewServer(
 		"templates/layouts/*.html",
 		"templates/partials/icons.html",
 		"templates/partials/media_card.html",
+		"templates/partials/empty_state.html",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse base templates: %w", err)
@@ -336,5 +338,9 @@ func (s *Server) setupRoutes() {
 func (s *Server) Start() error {
 	addr := fmt.Sprintf("%s:%d", s.cfg.Server.Host, s.cfg.Server.Port)
 	logger.InfoLog.Printf("Starting server on http://%s", addr)
-	return http.ListenAndServe(addr, s.router)
+	ln, err := net.Listen("tcp4", addr)
+	if err != nil {
+		return err
+	}
+	return http.Serve(ln, s.router)
 }

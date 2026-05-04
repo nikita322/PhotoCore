@@ -11,9 +11,6 @@
 {{end}}
 
 {{if not .Groups}}
-<div class="empty-state">
-    <h3>Пока ничего нет</h3>
-    <p>Добавьте медиа-файлы в директорию галереи</p>
-</div>
+{{template "empty_state" (dict "Title" "Пока ничего нет" "Description" "Добавьте медиа-файлы в директорию галереи")}}
 {{end}}
 {{end}}

@@ -46,10 +46,7 @@
         {{end}}
     </div>
     {{else}}
-    <div class="empty-state">
-        <h3>Альбом пуст</h3>
-        <p>Добавьте фотографии через галерею</p>
-    </div>
+    {{template "empty_state" (dict "Title" "Альбом пуст" "Description" "Добавьте фотографии через галерею")}}
     {{end}}
 </main>
 {{end}}
@@ -57,17 +54,7 @@
 {{define "scripts"}}
 const albumId = '{{.Album.ID}}';
 // Инициализируем глобальный favSet
-window.favSet = new Set([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
-
-// Обновляем значки избранного на основе favSet
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.media-card').forEach(card => {
-        const badge = card.querySelector('.favorite-badge');
-        if (badge && window.favSet.has(card.dataset.id)) {
-            badge.classList.add('active');
-        }
-    });
-});
+initFavorites([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
 
 function removeFromAlbum(mediaId, event) {
     event.stopPropagation();

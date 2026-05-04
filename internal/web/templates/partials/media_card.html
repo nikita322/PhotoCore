@@ -8,7 +8,7 @@ MEDIA CARD COMPONENT - Переиспользуемый компонент ка�
 
 Параметры (передаются через точку):
   .Media           - объект медиа (обязательно)
-  .Mode            - режим: "gallery", "trash", "favorites", "album" (по умолчанию "gallery")
+  .Mode            - режим: "gallery", "trash", "favorites", "album", "search" (по умолчанию "gallery")
   .ShowFavorite    - показывать кнопку избранного (по умолчанию true)
   .ShowOverlay     - показывать overlay с именем (по умолчанию true)
   .OnClick         - JS код для onclick или пусто
@@ -341,23 +341,23 @@ body.select-mode .media-card.selected::after {
 {{$takenAt := ""}}{{if not $media.TakenAt.IsZero}}{{$takenAt = $media.TakenAt.Format (RFC3339)}}{{end}}
 {{$meta := ""}}{{if $media.Metadata.Camera}}{{$meta = $media.Metadata.Camera}}{{end}}{{if $media.Metadata.Aperture}}{{$meta = printf "%s • %s" $meta $media.Metadata.Aperture}}{{end}}{{if $media.Metadata.ShutterSpeed}}{{$meta = printf "%s • %s" $meta $media.Metadata.ShutterSpeed}}{{end}}{{if $media.Metadata.ISO}}{{$meta = printf "%s • ISO %s" $meta $media.Metadata.ISO}}{{end}}
 
-<div class="md-card md-card-elevated media-card{{if eq $mode "gallery"}} clickable{{end}}{{if eq $mode "trash"}} trash-mode{{end}}{{if .ExtraClasses}} {{.ExtraClasses}}{{end}}"
+<div class="md-card md-card-elevated media-card{{if or (eq $mode "gallery") (eq $mode "search")}} clickable{{end}}{{if eq $mode "trash"}} trash-mode{{end}}{{if .ExtraClasses}} {{.ExtraClasses}}{{end}}"
      data-id="{{$media.ID}}"
      data-filename="{{$media.Filename}}"
      {{if not $media.TakenAt.IsZero}}data-taken-at="{{$takenAt}}"{{end}}
      {{if $meta}}data-meta="{{$meta}}"{{end}}
-     {{if $onClick}}onclick="{{$onClick}}"{{else if eq $mode "gallery"}}onclick="openLightbox('{{$media.ID}}', '{{$media.Filename}}', '{{$takenAt}}', '{{$meta}}')"{{else if and (eq $mode "trash") .DuplicateOf}}onclick="showCompare('{{$media.ID}}', '{{.DuplicateOf}}', event)"{{else if eq $mode "trash"}}onclick="openLightbox('{{$media.ID}}', '{{$media.Filename}}', '{{$takenAt}}', '{{$meta}}')"{{end}}>
+     {{if $onClick}}onclick="{{$onClick}}"{{else if eq $mode "gallery"}}onclick="openLightbox('{{$media.ID}}', '{{$media.Filename}}', '{{$takenAt}}', '{{$meta}}')"{{else if eq $mode "search"}}onclick="window.location='/view/{{$media.ID}}'"{{else if and (eq $mode "trash") .DuplicateOf}}onclick="showCompare('{{$media.ID}}', '{{.DuplicateOf}}', event)"{{else if eq $mode "trash"}}onclick="openLightbox('{{$media.ID}}', '{{$media.Filename}}', '{{$takenAt}}', '{{$meta}}')"{{end}}>
 
     {{/* Изображение */}}
     {{if eq $mode "trash"}}
         <img data-src="/media/{{$media.ID}}/thumb/small" alt="{{$media.Filename}}" loading="lazy">
     {{else if eq $mode "gallery"}}
         <div class="md-card-media" style="aspect-ratio: 1;">
-            <img data-src="/media/{{$media.ID}}/thumb" alt="{{$media.Filename}}" loading="lazy">
+            <img data-src="/media/{{$media.ID}}/thumb" alt="{{$media.Filename}}" loading="lazy" onload="this.classList.add('loaded'); this.classList.remove('loading')" onerror="this.classList.add('error'); this.classList.remove('loading')">
         </div>
     {{else}}
         <div class="md-card-media" style="aspect-ratio: 1;">
-            <img src="/media/{{$media.ID}}/thumb/small" alt="{{$media.Filename}}" loading="lazy">
+            <img src="/media/{{$media.ID}}/thumb/small" alt="{{$media.Filename}}" loading="lazy" onload="this.classList.add('loaded'); this.classList.remove('loading')" onerror="this.classList.add('error'); this.classList.remove('loading')">
         </div>
     {{end}}
 

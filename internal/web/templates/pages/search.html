@@ -92,17 +92,7 @@
 
 {{define "scripts"}}
 let selectedTags = [];
-// Инициализируем глобальный favSet
-window.favSet = new Set([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
-
-function updateFavoriteBadges() {
-    document.querySelectorAll('.media-card').forEach(card => {
-        const badge = card.querySelector('.favorite-badge');
-        if (badge && window.favSet.has(card.dataset.id)) {
-            badge.classList.add('active');
-        }
-    });
-}
+initFavorites([{{range $id, $_ := .FavSet}}"{{$id}}",{{end}}]);
 
 document.body.addEventListener('htmx:afterSwap', function() {
     updateFavoriteBadges();
