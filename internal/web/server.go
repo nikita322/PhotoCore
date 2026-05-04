@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -203,12 +204,35 @@ func staticCacheMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// requestLogMiddleware логирует HTTP запросы в info.log
+func requestLogMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+		next.ServeHTTP(ww, r)
+		logger.InfoLog.Printf("%s %s %d %s %dB", r.Method, r.URL.Path, ww.Status(), time.Since(start), ww.BytesWritten())
+	})
+}
+
+// recoverMiddleware перехватывает panic и логирует в error.log
+func recoverMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rvr := recover(); rvr != nil {
+				logger.ErrorLog.Printf("Panic: %v\n%s", rvr, debug.Stack())
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Server) setupRoutes() {
 	r := chi.NewRouter()
 
 	// Middleware
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	r.Use(requestLogMiddleware)
+	r.Use(recoverMiddleware)
 	r.Use(middleware.Compress(compressLevel))
 	r.Use(middleware.Timeout(requestTimeout))
 

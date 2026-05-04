@@ -22,6 +22,7 @@ func (h *Handlers) TrashPage(w http.ResponseWriter, r *http.Request) {
 
 	trashMedia, err := h.store.ListTrashMedia()
 	if err != nil {
+		logger.ErrorLog.Printf("Failed to list trash media: %v", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}

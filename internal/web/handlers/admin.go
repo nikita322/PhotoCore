@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/photocore/photocore/internal/auth"
+	"github.com/photocore/photocore/internal/logger"
 	"github.com/photocore/photocore/internal/storage"
 )
 
@@ -20,6 +21,7 @@ func (h *Handlers) AdminPage(w http.ResponseWriter, r *http.Request) {
 
 	users, err := h.store.ListUsers()
 	if err != nil {
+		logger.ErrorLog.Printf("Failed to list users: %v", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
