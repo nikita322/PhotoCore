@@ -103,7 +103,13 @@ func (h *Handlers) serveThumbnailWithSize(w http.ResponseWriter, r *http.Request
 
 		isProcessing := h.thumbService.IsProcessing(id, size)
 		if !isProcessing {
-			queued := h.thumbService.QueueThumbnail(id, size)
+			var queued bool
+			// On-demand запросы small получают высокий приоритет в fast-пуле
+			if size == media.ThumbnailSizeSmall {
+				queued = h.thumbService.QueueThumbnailOnDemand(id, size)
+			} else {
+				queued = h.thumbService.QueueThumbnail(id, size)
+			}
 			if queued {
 				logger.InfoLog.Printf("Thumbnail missing for %s/%s, queued for generation", id[:16], size)
 			} else {

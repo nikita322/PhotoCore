@@ -56,7 +56,7 @@ type Handlers struct {
 	auth          *auth.Auth
 	pageTemplates map[string]*template.Template
 	cache         *cache.MediaCache
-	workerPool    *worker.Pool
+	poolManager   *worker.PoolManager
 	thumbService  *worker.ThumbnailService
 	buildVersion  string
 }
@@ -70,7 +70,7 @@ func NewHandlers(
 	auth *auth.Auth,
 	pageTemplates map[string]*template.Template,
 	mediaCache *cache.MediaCache,
-	workerPool *worker.Pool,
+	poolManager *worker.PoolManager,
 	thumbService *worker.ThumbnailService,
 	buildVersion string,
 ) *Handlers {
@@ -82,7 +82,7 @@ func NewHandlers(
 		auth:          auth,
 		pageTemplates: pageTemplates,
 		cache:         mediaCache,
-		workerPool:    workerPool,
+		poolManager:   poolManager,
 		thumbService:  thumbService,
 		buildVersion:  buildVersion,
 	}

@@ -41,15 +41,13 @@ func (h *Handlers) Stats(w http.ResponseWriter, r *http.Request) {
 
 // QueueStats возвращает статистику очереди задач
 func (h *Handlers) QueueStats(w http.ResponseWriter, r *http.Request) {
-	stats := h.workerPool.Stats()
+	stats := h.poolManager.Stats()
 	h.jsonResponse(w, map[string]interface{}{
-		"total_tasks":     stats.TotalTasks,
-		"completed_tasks": stats.CompletedTasks,
-		"failed_tasks":    stats.FailedTasks,
-		"queued_tasks":    stats.QueuedTasks,
-		"active_workers":  stats.ActiveWorkers,
-		"queue_length":    h.workerPool.QueueLength(),
-		"processing":      h.thumbService.ProcessingCount(),
+		"fast":               stats.Fast,
+		"slow":               stats.Slow,
+		"total_queue_length": h.poolManager.TotalQueueLength(),
+		"total_processing":   h.poolManager.TotalProcessingCount(),
+		"processing":         h.thumbService.ProcessingCount(),
 	})
 }
 

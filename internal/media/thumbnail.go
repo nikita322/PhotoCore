@@ -20,6 +20,29 @@ import (
 	"github.com/photocore/photocore/internal/storage"
 )
 
+// lowPriorityCommand создает exec.Cmd с пониженным приоритетом через nice/ionice (если доступны)
+func lowPriorityCommand(name string, arg ...string) *exec.Cmd {
+	hasNice := false
+	hasIonice := false
+	if _, err := exec.LookPath("nice"); err == nil {
+		hasNice = true
+	}
+	if _, err := exec.LookPath("ionice"); err == nil {
+		hasIonice = true
+	}
+
+	switch {
+	case hasIonice && hasNice:
+		args := append([]string{"-c", "3", "nice", "-n", "10", name}, arg...)
+		return exec.Command("ionice", args...)
+	case hasNice:
+		args := append([]string{"-n", "10", name}, arg...)
+		return exec.Command("nice", args...)
+	default:
+		return exec.Command(name, arg...)
+	}
+}
+
 // ThumbnailSize определяет размер превью
 type ThumbnailSize string
 
@@ -174,7 +197,7 @@ func (t *ThumbnailGenerator) loadImage(path string) (image.Image, error) {
 func (t *ThumbnailGenerator) loadRawImage(path string) (image.Image, error) {
 	// Пробуем извлечь встроенный JPEG превью
 	// dcraw -e -c выдает встроенное превью на stdout
-	cmd := exec.Command(t.cfg.Tools.Dcraw, "-e", "-c", path)
+	cmd := lowPriorityCommand(t.cfg.Tools.Dcraw, "-e", "-c", path)
 	output, err := cmd.Output()
 	if err == nil && len(output) > 0 {
 		img, _, err := image.Decode(bytes.NewReader(output))
@@ -185,7 +208,7 @@ func (t *ThumbnailGenerator) loadRawImage(path string) (image.Image, error) {
 
 	// Если встроенного превью нет, конвертируем RAW в PPM
 	// dcraw -c -w -W -h выдает half-size PPM на stdout (быстрее)
-	cmd = exec.Command(t.cfg.Tools.Dcraw, "-c", "-w", "-W", "-h", path)
+	cmd = lowPriorityCommand(t.cfg.Tools.Dcraw, "-c", "-w", "-W", "-h", path)
 	output, err = cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("dcraw failed: %w", err)
@@ -202,7 +225,7 @@ func (t *ThumbnailGenerator) loadRawImage(path string) (image.Image, error) {
 // extractVideoFrame извлекает кадр из видео через ffmpeg
 func (t *ThumbnailGenerator) extractVideoFrame(path string) (image.Image, error) {
 	// ffmpeg -i video.mp4 -ss 00:00:01 -vframes 1 -f image2pipe -vcodec mjpeg -
-	cmd := exec.Command(t.cfg.Tools.Ffmpeg,
+	cmd := lowPriorityCommand(t.cfg.Tools.Ffmpeg,
 		"-i", path,
 		"-ss", ffmpegTimeSeek,
 		"-vframes", ffmpegFrames,
@@ -214,7 +237,7 @@ func (t *ThumbnailGenerator) extractVideoFrame(path string) (image.Image, error)
 	output, err := cmd.Output()
 	if err != nil {
 		// Пробуем с начала файла, если 1 секунда недоступна
-		cmd = exec.Command(t.cfg.Tools.Ffmpeg,
+		cmd = lowPriorityCommand(t.cfg.Tools.Ffmpeg,
 			"-i", path,
 			"-vframes", ffmpegFrames,
 			"-f", ffmpegFormat,

@@ -31,10 +31,8 @@ var staticFS embed.FS
 var BuildVersion = "dev"
 
 const (
-	defaultDirPerm     = storage.DefaultDirPerm
-	workerPoolSizeAuto = 0
-	workerQueueSize    = 1000
-	trashCleanupHours  = 24
+	defaultDirPerm    = storage.DefaultDirPerm
+	trashCleanupHours = 24
 )
 
 func main() {
@@ -89,13 +87,13 @@ func main() {
 	}
 	logger.InfoLog.Println("Thumbnail generator initialized")
 
-	// Создаем worker pool
-	workerPool := worker.NewPool(workerPoolSizeAuto, workerQueueSize) // 0 = auto (NumCPU)
-	workerPool.Start()
-	logger.InfoLog.Println("Worker pool started")
+	// Создаем менеджер пулов воркеров (fast + slow)
+	poolManager := worker.NewPoolManager()
+	poolManager.Start()
+	logger.InfoLog.Println("Worker pool manager started")
 
 	// Создаем сервис генерации превью
-	thumbService := worker.NewThumbnailService(workerPool, store, thumbGen)
+	thumbService := worker.NewThumbnailService(poolManager, store, thumbGen)
 	logger.InfoLog.Println("Thumbnail service initialized")
 
 	// Создаем сканер
@@ -126,7 +124,7 @@ func main() {
 	}
 
 	// Создаем веб-сервер
-	server, err := web.NewServer(cfg, store, mediaScanner, thumbGen, authService, staticSubFS, mediaCache, workerPool, thumbService, BuildVersion)
+	server, err := web.NewServer(cfg, store, mediaScanner, thumbGen, authService, staticSubFS, mediaCache, poolManager, thumbService, BuildVersion)
 	if err != nil {
 		logger.ErrorLog.Fatalf("Failed to create server: %v", err)
 	}
@@ -185,8 +183,8 @@ func main() {
 
 	// Явно закрываем все ресурсы в правильном порядке
 	// (defer может не сработать при SIGKILL)
-	logger.InfoLog.Println("Stopping worker pool...")
-	workerPool.Stop()
+	logger.InfoLog.Println("Stopping worker pool manager...")
+	poolManager.Stop()
 
 	logger.InfoLog.Println("Stopping media cache...")
 	mediaCache.Stop()

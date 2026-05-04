@@ -49,7 +49,7 @@ type Server struct {
 	router        *chi.Mux
 	staticFS      fs.FS
 	cache         *cache.MediaCache
-	workerPool    *worker.Pool
+	poolManager   *worker.PoolManager
 	thumbService  *worker.ThumbnailService
 	buildVersion  string // Версия сборки для cache busting статических файлов
 }
@@ -63,7 +63,7 @@ func NewServer(
 	authService *auth.Auth,
 	staticFS fs.FS,
 	mediaCache *cache.MediaCache,
-	workerPool *worker.Pool,
+	poolManager *worker.PoolManager,
 	thumbService *worker.ThumbnailService,
 	buildVersion string,
 ) (*Server, error) {
@@ -158,7 +158,7 @@ func NewServer(
 		pageTemplates: pageTemplates,
 		staticFS:      staticFS,
 		cache:         mediaCache,
-		workerPool:    workerPool,
+		poolManager:   poolManager,
 		thumbService:  thumbService,
 		buildVersion:  buildVersion,
 	}
@@ -237,7 +237,7 @@ func (s *Server) setupRoutes() {
 	r.Use(middleware.Timeout(requestTimeout))
 
 	// Создаем handlers
-	h := handlers.NewHandlers(s.cfg, s.store, s.scanner, s.thumbGen, s.auth, s.pageTemplates, s.cache, s.workerPool, s.thumbService, s.buildVersion)
+	h := handlers.NewHandlers(s.cfg, s.store, s.scanner, s.thumbGen, s.auth, s.pageTemplates, s.cache, s.poolManager, s.thumbService, s.buildVersion)
 
 	// Статические файлы
 	staticHandler := http.FileServer(http.FS(s.staticFS))
