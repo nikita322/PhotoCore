@@ -28,6 +28,37 @@ import (
 	"github.com/photocore/photocore/internal/worker"
 )
 
+// ResponseStatus представляет статус JSON-ответа
+type ResponseStatus string
+
+const (
+	StatusStarted      ResponseStatus = "started"
+	StatusDeleted      ResponseStatus = "deleted"
+	StatusAdded        ResponseStatus = "added"
+	StatusRemoved      ResponseStatus = "removed"
+	StatusUpdated      ResponseStatus = "updated"
+	StatusRestored     ResponseStatus = "restored"
+	StatusMovedToTrash ResponseStatus = "moved_to_trash"
+	StatusEmptied      ResponseStatus = "emptied"
+	StatusReplaced     ResponseStatus = "replaced"
+	StatusUnmarked     ResponseStatus = "unmarked"
+	StatusRevoked      ResponseStatus = "revoked"
+)
+
+const (
+	hxRequestHeader    = "HX-Request"
+	hxRequestTrue      = "true"
+	contentTypeJSON    = "application/json"
+	contentDisposition = "attachment; filename=\"photos.zip\""
+	cookieSessionName  = "session"
+
+	uploadDir          = "upload"
+	defaultDeviceName  = "Unnamed Device"
+	trashRetentionDays = 30
+	maxUploadSize      = 10 << 30 // 10 GB
+	cacheControlDay    = 86400    // 1 day in seconds
+)
+
 // Handlers содержит все HTTP-обработчики
 type Handlers struct {
 	cfg           *config.Config
@@ -123,7 +154,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session",
+		Name:     cookieSessionName,
 		Value:    session.ID,
 		Path:     "/",
 		MaxAge:   h.cfg.Auth.SessionMaxAge,
@@ -137,13 +168,13 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 
 // Logout выполняет выход пользователя
 func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("session")
+	cookie, err := r.Cookie(cookieSessionName)
 	if err == nil {
 		h.auth.Logout(cookie.Value)
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:   "session",
+		Name:   cookieSessionName,
 		Value:  "",
 		Path:   "/",
 		MaxAge: -1,
@@ -168,7 +199,7 @@ func (h *Handlers) ViewMedia(w http.ResponseWriter, r *http.Request) {
 		h.cache.SetMedia(m)
 	}
 
-	isHTMX := r.Header.Get("HX-Request") == "true"
+	isHTMX := r.Header.Get(hxRequestHeader) == hxRequestTrue
 
 	data := h.baseData(r)
 	data["Media"] = m
@@ -209,19 +240,19 @@ func (h *Handlers) ServeMedia(w http.ResponseWriter, r *http.Request) {
 
 // ServeThumbnail отдает превью
 func (h *Handlers) ServeThumbnail(w http.ResponseWriter, r *http.Request) {
-	h.serveThumbnailWithSize(w, r, "small")
+	h.serveThumbnailWithSize(w, r, media.ThumbnailSizeSmall)
 }
 
 // ServeThumbnailSize отдает превью указанного размера
 func (h *Handlers) ServeThumbnailSize(w http.ResponseWriter, r *http.Request) {
 	size := chi.URLParam(r, "size")
-	if size != "small" && size != "medium" && size != "large" {
-		size = "small"
+	if size != string(media.ThumbnailSizeSmall) && size != string(media.ThumbnailSizeMedium) && size != string(media.ThumbnailSizeLarge) {
+		size = string(media.ThumbnailSizeSmall)
 	}
-	h.serveThumbnailWithSize(w, r, size)
+	h.serveThumbnailWithSize(w, r, media.ThumbnailSize(size))
 }
 
-func (h *Handlers) serveThumbnailWithSize(w http.ResponseWriter, r *http.Request, size string) {
+func (h *Handlers) serveThumbnailWithSize(w http.ResponseWriter, r *http.Request, size media.ThumbnailSize) {
 	id := chi.URLParam(r, "id")
 
 	m, found := h.cache.GetMedia(id)
@@ -270,7 +301,7 @@ func (h *Handlers) serveThumbnailWithSize(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "image/jpeg")
-	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", cacheControlDay))
 	http.ServeFile(w, r, thumbPath)
 }
 
@@ -287,7 +318,7 @@ func (h *Handlers) StartScan(w http.ResponseWriter, r *http.Request) {
 	h.cache.Clear()
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status":  "started",
+		"status":  StatusStarted,
 		"message": "Сканирование запущено",
 	})
 }
@@ -343,7 +374,7 @@ func (h *Handlers) GenerateThumbnails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status":  "started",
+		"status":  StatusStarted,
 		"message": "Генерация превью запущена",
 	})
 }
@@ -364,12 +395,12 @@ func (h *Handlers) Search(w http.ResponseWriter, r *http.Request) {
 
 	// Даты
 	if from := r.URL.Query().Get("from"); from != "" {
-		if t, err := time.Parse("2006-01-02", from); err == nil {
+		if t, err := time.Parse(time.DateOnly, from); err == nil {
 			query.DateFrom = &t
 		}
 	}
 	if to := r.URL.Query().Get("to"); to != "" {
-		if t, err := time.Parse("2006-01-02", to); err == nil {
+		if t, err := time.Parse(time.DateOnly, to); err == nil {
 			query.DateTo = &t
 		}
 	}
@@ -380,13 +411,13 @@ func (h *Handlers) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Избранное
-	if fav := r.URL.Query().Get("favorite"); fav == "true" {
+	if fav := r.URL.Query().Get("favorite"); fav == hxRequestTrue {
 		t := true
 		query.IsFavorite = &t
 	}
 
 	// GPS
-	if gps := r.URL.Query().Get("gps"); gps == "true" {
+	if gps := r.URL.Query().Get("gps"); gps == hxRequestTrue {
 		t := true
 		query.HasGPS = &t
 	}
@@ -410,7 +441,7 @@ func (h *Handlers) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Проверяем, запрашивается ли HTML или JSON
-	isHTMX := r.Header.Get("HX-Request") == "true"
+	isHTMX := r.Header.Get(hxRequestHeader) == hxRequestTrue
 	if isHTMX {
 		h.renderPartial(w, "search_results.html", map[string]interface{}{
 			"Media":      result.Media,
@@ -518,7 +549,7 @@ func (h *Handlers) CreateAlbum(w http.ResponseWriter, r *http.Request) {
 		Description string `json:"description"`
 	}
 
-	if r.Header.Get("Content-Type") == "application/json" {
+	if r.Header.Get("Content-Type") == contentTypeJSON {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			h.jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
@@ -616,7 +647,7 @@ func (h *Handlers) DeleteAlbum(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.jsonResponse(w, map[string]string{"status": "deleted"})
+	h.jsonResponse(w, map[string]string{"status": string(StatusDeleted)})
 }
 
 // AddToAlbum добавляет медиа в альбом
@@ -644,7 +675,7 @@ func (h *Handlers) AddToAlbum(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.jsonResponse(w, map[string]string{"status": "added"})
+	h.jsonResponse(w, map[string]string{"status": string(StatusAdded)})
 }
 
 // RemoveFromAlbum удаляет медиа из альбома
@@ -672,7 +703,7 @@ func (h *Handlers) RemoveFromAlbum(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.jsonResponse(w, map[string]string{"status": "removed"})
+	h.jsonResponse(w, map[string]string{"status": string(StatusRemoved)})
 }
 
 // === Избранное (per-user) ===
@@ -769,7 +800,7 @@ func (h *Handlers) AddTags(w http.ResponseWriter, r *http.Request) {
 	// Инвалидируем кэш
 	h.cache.DeleteMedia(id)
 
-	h.jsonResponse(w, map[string]string{"status": "added"})
+	h.jsonResponse(w, map[string]string{"status": string(StatusAdded)})
 }
 
 // RemoveTags удаляет теги с медиа
@@ -800,7 +831,7 @@ func (h *Handlers) RemoveTags(w http.ResponseWriter, r *http.Request) {
 	// Инвалидируем кэш
 	h.cache.DeleteMedia(id)
 
-	h.jsonResponse(w, map[string]string{"status": "removed"})
+	h.jsonResponse(w, map[string]string{"status": string(StatusRemoved)})
 }
 
 // MediaByTag возвращает медиа с определенным тегом
@@ -881,11 +912,11 @@ func (h *Handlers) TimelineAllMedia(w http.ResponseWriter, r *http.Request) {
 	// Сортируем по дате (новые первые)
 	sort.Slice(allMedia, func(i, j int) bool {
 		dateI := allMedia[i].TakenAt
-		if dateI.IsZero() || dateI.Year() < 1900 {
+		if dateI.IsZero() {
 			dateI = allMedia[i].ModifiedAt
 		}
 		dateJ := allMedia[j].TakenAt
-		if dateJ.IsZero() || dateJ.Year() < 1900 {
+		if dateJ.IsZero() {
 			dateJ = allMedia[j].ModifiedAt
 		}
 		return dateI.After(dateJ)
@@ -911,10 +942,10 @@ func (h *Handlers) TimelineAllMedia(w http.ResponseWriter, r *http.Request) {
 
 	for _, m := range allMedia {
 		var date string
-		if !m.TakenAt.IsZero() && m.TakenAt.Year() > 1900 {
-			date = m.TakenAt.Format("2006-01")
+		if !m.TakenAt.IsZero() {
+			date = storage.FormatYearMonth(m.TakenAt)
 		} else {
-			date = m.ModifiedAt.Format("2006-01")
+			date = storage.FormatYearMonth(m.ModifiedAt)
 		}
 
 		if date != currentPeriod {
@@ -993,7 +1024,7 @@ func (h *Handlers) BulkFavorite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status": "updated",
+		"status": StatusUpdated,
 		"count":  len(req.MediaIDs),
 	})
 }
@@ -1028,7 +1059,7 @@ func (h *Handlers) BulkAddTags(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status": "updated",
+		"status": StatusUpdated,
 		"count":  len(req.MediaIDs),
 	})
 }
@@ -1058,7 +1089,7 @@ func (h *Handlers) BulkAddToAlbum(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status": "added",
+		"status": StatusAdded,
 		"count":  len(req.MediaIDs),
 	})
 }
@@ -1096,7 +1127,7 @@ func (h *Handlers) BulkDelete(w http.ResponseWriter, r *http.Request) {
 	h.cache.Clear()
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status": "deleted",
+		"status": StatusDeleted,
 		"count":  len(req.MediaIDs),
 	})
 }
@@ -1119,7 +1150,7 @@ func (h *Handlers) BulkDownload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", "attachment; filename=\"photos.zip\"")
+	w.Header().Set("Content-Disposition", contentDisposition)
 
 	zipWriter := zip.NewWriter(w)
 	defer zipWriter.Close()
@@ -1178,12 +1209,12 @@ func (h *Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Убираем хеши паролей из ответа
 	type safeUser struct {
-		ID          string `json:"id"`
-		Username    string `json:"username"`
-		DisplayName string `json:"display_name"`
-		Role        string `json:"role"`
-		CreatedAt   string `json:"created_at"`
-		LastLogin   string `json:"last_login"`
+		ID          string       `json:"id"`
+		Username    string       `json:"username"`
+		DisplayName string       `json:"display_name"`
+		Role        storage.Role `json:"role"`
+		CreatedAt   string       `json:"created_at"`
+		LastLogin   string       `json:"last_login"`
 	}
 	var safeUsers []safeUser
 	for _, u := range users {
@@ -1192,8 +1223,8 @@ func (h *Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 			Username:    u.Username,
 			DisplayName: u.DisplayName,
 			Role:        u.Role,
-			CreatedAt:   u.CreatedAt.Format("2006-01-02 15:04"),
-			LastLogin:   u.LastLogin.Format("2006-01-02 15:04"),
+			CreatedAt:   u.CreatedAt.Format(time.DateTime),
+			LastLogin:   u.LastLogin.Format(time.DateTime),
 		})
 	}
 
@@ -1209,10 +1240,10 @@ func (h *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Username    string `json:"username"`
-		DisplayName string `json:"display_name"`
-		Password    string `json:"password"`
-		Role        string `json:"role"`
+		Username    string       `json:"username"`
+		DisplayName string       `json:"display_name"`
+		Password    string       `json:"password"`
+		Role        storage.Role `json:"role"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1290,9 +1321,9 @@ func (h *Handlers) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		DisplayName string `json:"display_name"`
-		Password    string `json:"password"`
-		Role        string `json:"role"`
+		DisplayName string       `json:"display_name"`
+		Password    string       `json:"password"`
+		Role        storage.Role `json:"role"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1324,7 +1355,7 @@ func (h *Handlers) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.jsonResponse(w, map[string]string{"status": "updated"})
+	h.jsonResponse(w, map[string]string{"status": string(StatusUpdated)})
 }
 
 // DeleteUser удаляет пользователя
@@ -1349,7 +1380,7 @@ func (h *Handlers) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.jsonResponse(w, map[string]string{"status": "deleted"})
+	h.jsonResponse(w, map[string]string{"status": string(StatusDeleted)})
 }
 
 // === Корзина ===
@@ -1380,7 +1411,7 @@ func (h *Handlers) TrashPage(w http.ResponseWriter, r *http.Request) {
 	// Добавляем информацию о днях до удаления
 	type TrashItem struct {
 		*storage.Media
-		DaysRemaining int
+		DaysRemaining  int
 		DeletedDaysAgo int
 	}
 
@@ -1390,7 +1421,7 @@ func (h *Handlers) TrashPage(w http.ResponseWriter, r *http.Request) {
 		remaining := 30
 		if m.DeletedAt != nil {
 			daysAgo = int(time.Since(*m.DeletedAt).Hours() / 24)
-			remaining = 30 - daysAgo
+			remaining = trashRetentionDays - daysAgo
 			if remaining < 0 {
 				remaining = 0
 			}
@@ -1429,7 +1460,7 @@ func (h *Handlers) MoveToTrash(w http.ResponseWriter, r *http.Request) {
 	h.cache.Clear()
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status":  "moved_to_trash",
+		"status":  StatusMovedToTrash,
 		"message": "Файл перемещён в корзину",
 	})
 }
@@ -1455,7 +1486,7 @@ func (h *Handlers) RestoreFromTrash(w http.ResponseWriter, r *http.Request) {
 	h.cache.Clear()
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status":  "restored",
+		"status":  StatusRestored,
 		"message": "Файл восстановлен",
 	})
 }
@@ -1501,7 +1532,7 @@ func (h *Handlers) PermanentDelete(w http.ResponseWriter, r *http.Request) {
 	h.cache.Clear()
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status":  "deleted",
+		"status":  StatusDeleted,
 		"message": "Файл удалён окончательно",
 	})
 }
@@ -1543,7 +1574,7 @@ func (h *Handlers) EmptyTrash(w http.ResponseWriter, r *http.Request) {
 	h.cache.Clear()
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status":  "emptied",
+		"status":  StatusEmptied,
 		"deleted": deleted,
 		"message": "Корзина очищена",
 	})
@@ -1570,7 +1601,7 @@ func (h *Handlers) GetMediaInfo(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) ReplaceDuplicate(w http.ResponseWriter, r *http.Request) {
 	// Проверка прав: только admin
 	role := auth.GetUserRole(r)
-	if role != "admin" {
+	if role != storage.RoleAdmin {
 		h.jsonError(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -1620,7 +1651,7 @@ func (h *Handlers) ReplaceDuplicate(w http.ResponseWriter, r *http.Request) {
 	h.cache.Clear()
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status":  "replaced",
+		"status":  StatusReplaced,
 		"message": "Оригинал заменён на дубликат",
 	})
 }
@@ -1629,7 +1660,7 @@ func (h *Handlers) ReplaceDuplicate(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) UnmarkDuplicate(w http.ResponseWriter, r *http.Request) {
 	// Проверка прав: только admin
 	role := auth.GetUserRole(r)
-	if role != "admin" {
+	if role != storage.RoleAdmin {
 		h.jsonError(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -1663,7 +1694,7 @@ func (h *Handlers) UnmarkDuplicate(w http.ResponseWriter, r *http.Request) {
 	h.cache.Clear()
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status":  "unmarked",
+		"status":  StatusUnmarked,
 		"message": "Статус дубликата снят",
 	})
 }
@@ -1699,7 +1730,7 @@ func (h *Handlers) BulkMoveToTrash(w http.ResponseWriter, r *http.Request) {
 	h.cache.Clear()
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status": "moved_to_trash",
+		"status": StatusMovedToTrash,
 		"count":  moved,
 	})
 }
@@ -1735,7 +1766,7 @@ func (h *Handlers) BulkRestore(w http.ResponseWriter, r *http.Request) {
 	h.cache.Clear()
 
 	h.jsonResponse(w, map[string]interface{}{
-		"status": "restored",
+		"status": StatusRestored,
 		"count":  restored,
 	})
 }
@@ -1759,7 +1790,7 @@ func (h *Handlers) TrashStats(w http.ResponseWriter, r *http.Request) {
 // wantsHTML проверяет, запрашивает ли клиент HTML (браузер или HTMX)
 func (h *Handlers) wantsHTML(r *http.Request) bool {
 	// HTMX запросы всегда хотят HTML
-	if r.Header.Get("HX-Request") == "true" {
+	if r.Header.Get(hxRequestHeader) == hxRequestTrue {
 		return true
 	}
 	// Проверяем Accept header (браузеры отправляют text/html в начале)
@@ -1803,12 +1834,12 @@ func (h *Handlers) renderPartial(w http.ResponseWriter, name string, data interf
 }
 
 func (h *Handlers) jsonResponse(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", contentTypeJSON)
 	json.NewEncoder(w).Encode(data)
 }
 
 func (h *Handlers) jsonError(w http.ResponseWriter, message string, code int) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", contentTypeJSON)
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
@@ -1877,7 +1908,7 @@ func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ограничиваем размер до 10GB (для семейного использования)
-	err := r.ParseMultipartForm(10 << 30)
+	err := r.ParseMultipartForm(maxUploadSize)
 	if err != nil {
 		h.jsonError(w, "Failed to parse form: "+err.Error(), http.StatusBadRequest)
 		return
@@ -1904,7 +1935,9 @@ func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
 	// Определяем целевую директорию
 	now := time.Now()
 	baseDir := h.cfg.Storage.MediaPaths[0]
-	targetDir := filepath.Join(baseDir, "upload", now.Format("2006"), now.Format("01"))
+	year := strconv.Itoa(now.Year())
+	month := fmt.Sprintf("%02d", now.Month())
+	targetDir := filepath.Join(baseDir, uploadDir, year, month)
 
 	// Создаем директорию если её нет
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
@@ -1928,7 +1961,7 @@ func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Генерируем уникальное имя файла
-		timestamp := now.Format("20060102_150405")
+		timestamp := fmt.Sprintf("%04d%02d%02d_%02d%02d%02d", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
 		uniqueFilename := timestamp + "_" + fileHeader.Filename
 		targetPath := filepath.Join(targetDir, uniqueFilename)
 
@@ -1975,7 +2008,7 @@ func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Создаем запись media
-		relPath := filepath.Join("upload", now.Format("2006"), now.Format("01"), uniqueFilename)
+		relPath := filepath.Join(uploadDir, year, month, uniqueFilename)
 		mediaItem := &storage.Media{
 			ID:         storage.GenerateID(targetPath),
 			Path:       targetPath,
@@ -2019,7 +2052,7 @@ func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
 			// Дубликат - помечаем и переносим в корзину
 			mediaItem.DuplicateOf = dupResult.ExistingID
 			mediaItem.DeletedAt = &now
-			messages = append(messages, "Duplicate detected: "+uniqueFilename+" ("+dupResult.Type+")")
+			messages = append(messages, "Duplicate detected: "+uniqueFilename+" ("+string(dupResult.Type)+")")
 		}
 
 		// Сохраняем в БД
@@ -2074,7 +2107,7 @@ func (h *Handlers) GenerateAPIToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.DeviceName == "" {
-		req.DeviceName = "Unnamed Device"
+		req.DeviceName = defaultDeviceName
 	}
 
 	token, err := h.auth.GenerateAPIToken(session.UserID, session.Username, session.Role, req.DeviceName)
@@ -2139,7 +2172,7 @@ func (h *Handlers) RevokeAPIToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.jsonResponse(w, map[string]string{"status": "revoked"})
+	h.jsonResponse(w, map[string]string{"status": string(StatusRevoked)})
 }
 
 func generateID() string {

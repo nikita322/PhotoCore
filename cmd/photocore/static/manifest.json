@@ -1,0 +1,42 @@
+{
+  "name": "PhotoCore Gallery",
+  "short_name": "PhotoCore",
+  "description": "Семейная фото-видео галерея",
+  "start_url": "/gallery?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#8ab4f8",
+  "background_color": "#121212",
+  "icons": [
+    {
+      "src": "/static/images/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/images/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["photo", "lifestyle"],
+  "screenshots": [],
+  "share_target": {
+    "action": "/api/upload",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "files",
+          "accept": ["image/*", "video/*"]
+        }
+      ]
+    }
+  },
+  "lang": "ru",
+  "dir": "ltr"
+}

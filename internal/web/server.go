@@ -27,6 +27,15 @@ import (
 //go:embed templates/layouts/*.html templates/pages/*.html templates/partials/*.html
 var templatesFS embed.FS
 
+const (
+	cacheControlYear  = 31536000 // 1 year in seconds
+	cacheControlMonth = 2592000  // 1 month in seconds
+	cacheControlWeek  = 604800   // 1 week in seconds
+	cacheControlDay   = 86400    // 1 day in seconds
+	compressLevel     = 5
+	requestTimeout    = 60 * time.Second
+)
+
 // Server представляет веб-сервер приложения
 type Server struct {
 	cfg           *config.Config
@@ -166,25 +175,25 @@ func staticCacheMiddleware(next http.Handler) http.Handler {
 		switch ext {
 		case ".js":
 			// JavaScript файлы - 1 год (immutable, так как версионируются)
-			cacheControl = "public, max-age=31536000, immutable"
+			cacheControl = fmt.Sprintf("public, max-age=%d, immutable", cacheControlYear)
 		case ".css":
 			// CSS файлы - 1 год (immutable)
-			cacheControl = "public, max-age=31536000, immutable"
+			cacheControl = fmt.Sprintf("public, max-age=%d, immutable", cacheControlYear)
 		case ".woff", ".woff2", ".ttf", ".eot", ".otf":
 			// Шрифты - 1 год (immutable)
-			cacheControl = "public, max-age=31536000, immutable"
+			cacheControl = fmt.Sprintf("public, max-age=%d, immutable", cacheControlYear)
 		case ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".ico":
 			// Изображения - 1 месяц
-			cacheControl = "public, max-age=2592000"
+			cacheControl = fmt.Sprintf("public, max-age=%d", cacheControlMonth)
 		case ".json", ".xml":
 			// Конфигурационные файлы - 1 день
-			cacheControl = "public, max-age=86400"
+			cacheControl = fmt.Sprintf("public, max-age=%d", cacheControlDay)
 		case ".html":
 			// HTML файлы - без кэша (для offline.html и т.д.)
 			cacheControl = "no-cache"
 		default:
 			// Остальные файлы - 1 неделя
-			cacheControl = "public, max-age=604800"
+			cacheControl = fmt.Sprintf("public, max-age=%d", cacheControlWeek)
 		}
 
 		w.Header().Set("Cache-Control", cacheControl)
@@ -198,8 +207,8 @@ func (s *Server) setupRoutes() {
 	// Middleware
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(middleware.Compress(5))
-	r.Use(middleware.Timeout(60 * time.Second))
+	r.Use(middleware.Compress(compressLevel))
+	r.Use(middleware.Timeout(requestTimeout))
 
 	// Создаем handlers
 	h := handlers.NewHandlers(s.cfg, s.store, s.scanner, s.thumbGen, s.auth, s.pageTemplates, s.cache, s.workerPool, s.thumbService, s.buildVersion)

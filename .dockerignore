@@ -1,0 +1,61 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+BUILD.md
+ROADMAP.md
+CLAUDE.md
+LICENSE
+
+# IDE
+.idea
+.vscode
+*.code-workspace
+
+# Build artifacts
+build/
+dist/
+*.exe
+photocore
+photocore-*
+
+# Test artifacts
+*.test
+coverage.out
+coverage.html
+
+# Local data
+data/
+thumbs/
+cache/
+logs/
+tmp/
+temp/
+
+# Config with secrets
+config.local.yaml
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Docker files (not needed in context)
+Dockerfile
+Dockerfile.prod
+docker-compose*.yml
+.dockerignore
+
+# Air tmp
+.air.toml
+tmp/
+
+# Scripts that aren't needed in image
+scripts/

@@ -74,42 +74,57 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
+const (
+	defaultServerHost    = "0.0.0.0"
+	defaultServerPort    = 8080
+	defaultCachePath     = "./cache"
+	defaultDBPath        = "./data/photocore.db"
+	defaultLogsPath      = "./logs"
+	defaultThumbSmall    = 300
+	defaultThumbMedium   = 600
+	defaultThumbLarge    = 1200
+	defaultThumbQuality  = 85
+	defaultSessionMaxAge = 86400
+	defaultToolDcraw     = "dcraw"
+	defaultToolFfmpeg    = "ffmpeg"
+)
+
 func (c *Config) setDefaults() {
 	if c.Server.Host == "" {
-		c.Server.Host = "0.0.0.0"
+		c.Server.Host = defaultServerHost
 	}
 	if c.Server.Port == 0 {
-		c.Server.Port = 8080
+		c.Server.Port = defaultServerPort
 	}
 	if c.Storage.CachePath == "" {
-		c.Storage.CachePath = "./cache"
+		c.Storage.CachePath = defaultCachePath
 	}
 	if c.Storage.DBPath == "" {
-		c.Storage.DBPath = "./data/photocore.db"
+		c.Storage.DBPath = defaultDBPath
 	}
 	if c.Storage.LogsPath == "" {
-		c.Storage.LogsPath = "./logs"
+		c.Storage.LogsPath = defaultLogsPath
 	}
 	if c.Thumbnails.Small == 0 {
-		c.Thumbnails.Small = 300
+		c.Thumbnails.Small = defaultThumbSmall
 	}
 	if c.Thumbnails.Medium == 0 {
-		c.Thumbnails.Medium = 600
+		c.Thumbnails.Medium = defaultThumbMedium
 	}
 	if c.Thumbnails.Large == 0 {
-		c.Thumbnails.Large = 1200
+		c.Thumbnails.Large = defaultThumbLarge
 	}
 	if c.Thumbnails.Quality == 0 {
-		c.Thumbnails.Quality = 85
+		c.Thumbnails.Quality = defaultThumbQuality
 	}
 	if c.Auth.SessionMaxAge == 0 {
-		c.Auth.SessionMaxAge = 86400
+		c.Auth.SessionMaxAge = defaultSessionMaxAge
 	}
 	if c.Tools.Dcraw == "" {
-		c.Tools.Dcraw = "dcraw"
+		c.Tools.Dcraw = defaultToolDcraw
 	}
 	if c.Tools.Ffmpeg == "" {
-		c.Tools.Ffmpeg = "ffmpeg"
+		c.Tools.Ffmpeg = defaultToolFfmpeg
 	}
 }
 

@@ -13,11 +13,21 @@ const (
 	MediaTypeRaw   MediaType = "raw"
 )
 
-// Роли пользователей
+// Role определяет роль пользователя в системе
+type Role string
+
 const (
-	RoleAdmin  = "admin"  // Полный доступ + управление пользователями
-	RoleEditor = "editor" // Создание альбомов, теги (без удаления)
-	RoleViewer = "viewer" // Только просмотр и своё избранное
+	RoleAdmin  Role = "admin"  // Полный доступ + управление пользователями
+	RoleEditor Role = "editor" // Создание альбомов, теги (без удаления)
+	RoleViewer Role = "viewer" // Только просмотр и своё избранное
+)
+
+// DuplicateType определяет тип группы дубликатов
+type DuplicateType string
+
+const (
+	DuplicateTypeExact   DuplicateType = "exact"
+	DuplicateTypeSimilar DuplicateType = "similar"
 )
 
 // Media представляет медиа-файл в галерее
@@ -67,7 +77,7 @@ type User struct {
 	Username     string    `json:"username"`
 	DisplayName  string    `json:"display_name"` // Отображаемое имя
 	PasswordHash string    `json:"password_hash"`
-	Role         string    `json:"role"` // admin, editor, viewer
+	Role         Role      `json:"role"` // admin, editor, viewer
 	CreatedAt    time.Time `json:"created_at"`
 	LastLogin    time.Time `json:"last_login"`
 }
@@ -77,7 +87,7 @@ type Session struct {
 	ID        string    `json:"id"`
 	UserID    string    `json:"user_id"`
 	Username  string    `json:"username"`
-	Role      string    `json:"role"`
+	Role      Role      `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	ExpiresAt time.Time `json:"expires_at"`
 }
@@ -87,7 +97,7 @@ type APIToken struct {
 	Token      string    `json:"token"`
 	UserID     string    `json:"user_id"`
 	Username   string    `json:"username"`
-	Role       string    `json:"role"`
+	Role       Role      `json:"role"`
 	CreatedAt  time.Time `json:"created_at"`
 	ExpiresAt  time.Time `json:"expires_at"`
 	DeviceName string    `json:"device_name"`
@@ -116,11 +126,11 @@ type Album struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	CoverID     string    `json:"cover_id"`      // ID медиа для обложки
-	MediaIDs    []string  `json:"media_ids"`     // ID медиа в альбоме
+	CoverID     string    `json:"cover_id"`  // ID медиа для обложки
+	MediaIDs    []string  `json:"media_ids"` // ID медиа в альбоме
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-	MediaCount  int       `json:"media_count"`   // Кэшированное количество
+	MediaCount  int       `json:"media_count"` // Кэшированное количество
 }
 
 // Tag представляет тег для организации медиа
@@ -153,8 +163,8 @@ type SearchResult struct {
 
 // TimelineGroup группа медиа по дате
 type TimelineGroup struct {
-	Date       string   `json:"date"`        // YYYY-MM или YYYY-MM-DD
-	Label      string   `json:"label"`       // Человекочитаемая метка
+	Date       string   `json:"date"`  // YYYY-MM или YYYY-MM-DD
+	Label      string   `json:"label"` // Человекочитаемая метка
 	MediaCount int      `json:"media_count"`
 	Media      []*Media `json:"media,omitempty"`
 }
@@ -169,7 +179,7 @@ type GeoPoint struct {
 
 // DuplicateGroup представляет группу дубликатов
 type DuplicateGroup struct {
-	Type     string   `json:"type"`      // "exact" или "similar"
-	Media    []*Media `json:"media"`     // Медиа в группе
-	Distance int      `json:"distance"`  // Hamming distance (для similar)
+	Type     DuplicateType `json:"type"`     // exact или similar
+	Media    []*Media      `json:"media"`    // Медиа в группе
+	Distance int           `json:"distance"` // Hamming distance (для similar)
 }

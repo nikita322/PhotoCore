@@ -14,13 +14,25 @@ import (
 	"github.com/photocore/photocore/internal/storage"
 )
 
+// FileOperation определяет тип файловой операции
+type FileOperation string
+
+const (
+	FileOpCreate FileOperation = "create"
+	FileOpModify FileOperation = "modify"
+	FileOpDelete FileOperation = "delete"
+	FileOpRename FileOperation = "rename"
+)
+
 // FileEvent представляет событие файловой системы
 type FileEvent struct {
 	Path      string
-	Operation string // create, modify, delete, rename
+	Operation FileOperation // create, modify, delete, rename
 	IsDir     bool
 	Time      time.Time
 }
+
+const watcherDebounceDelay = 2 * time.Second
 
 // EventHandler обрабатывает события файловой системы
 type EventHandler func(event FileEvent)
@@ -158,16 +170,16 @@ func (w *Watcher) eventLoop() {
 
 func (w *Watcher) handleFSEvent(event fsnotify.Event) {
 	// Определяем тип операции
-	var op string
+	var op FileOperation
 	switch {
 	case event.Op&fsnotify.Create == fsnotify.Create:
-		op = "create"
+		op = FileOpCreate
 	case event.Op&fsnotify.Write == fsnotify.Write:
-		op = "modify"
+		op = FileOpModify
 	case event.Op&fsnotify.Remove == fsnotify.Remove:
-		op = "delete"
+		op = FileOpDelete
 	case event.Op&fsnotify.Rename == fsnotify.Rename:
-		op = "rename"
+		op = FileOpRename
 	default:
 		return
 	}
@@ -210,7 +222,7 @@ func (w *Watcher) handleFSEvent(event fsnotify.Event) {
 	if w.debounceTimer != nil {
 		w.debounceTimer.Stop()
 	}
-	w.debounceTimer = time.AfterFunc(2*time.Second, w.processPendingEvents)
+	w.debounceTimer = time.AfterFunc(watcherDebounceDelay, w.processPendingEvents)
 	w.debounceMu.Unlock()
 }
 

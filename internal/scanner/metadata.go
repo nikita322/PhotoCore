@@ -12,6 +12,44 @@ import (
 	"github.com/photocore/photocore/internal/storage"
 )
 
+// ExifTagName представляет имя EXIF-тега
+type ExifTagName string
+
+const (
+	exifTagDateTimeOriginal  ExifTagName = "DateTimeOriginal"
+	exifTagDateTimeDigitized ExifTagName = "DateTimeDigitized"
+	exifTagPixelXDimension   ExifTagName = "PixelXDimension"
+	exifTagPixelYDimension   ExifTagName = "PixelYDimension"
+	exifTagFocalLength       ExifTagName = "FocalLength"
+	exifTagFNumber           ExifTagName = "FNumber"
+	exifTagExposureTime      ExifTagName = "ExposureTime"
+	exifTagISOSpeedRatings   ExifTagName = "ISOSpeedRatings"
+	exifTagLensModel         ExifTagName = "LensModel"
+	exifTagMake              ExifTagName = "Make"
+	exifTagModel             ExifTagName = "Model"
+	exifTagOrientation       ExifTagName = "Orientation"
+	exifTagDateTime          ExifTagName = "DateTime"
+	exifTagImageWidth        ExifTagName = "ImageWidth"
+	exifTagImageLength       ExifTagName = "ImageLength"
+	exifTagGPSLatitudeRef    ExifTagName = "GPSLatitudeRef"
+	exifTagGPSLatitude       ExifTagName = "GPSLatitude"
+	exifTagGPSLongitudeRef   ExifTagName = "GPSLongitudeRef"
+	exifTagGPSLongitude      ExifTagName = "GPSLongitude"
+)
+
+const (
+	exifDateTimeFormat   = "2006:01:02 15:04:05"
+	exifDateTimeZero     = "0000:00:00 00:00:00"
+	gpsRefSouth          = "S"
+	gpsRefWest           = "W"
+	secondsPerMinute     = 60
+	secondsPerDegree     = 3600
+	focalLengthFormat    = "%.0fmm"
+	apertureFormat       = "f/%.1f"
+	shutterSpeedFraction = "1/%d"
+	shutterSpeedSeconds  = "%.1fs"
+)
+
 // ExtractMetadata извлекает EXIF метаданные из изображения
 func ExtractMetadata(path string, media *storage.Media) error {
 	// Используем универсальный метод который работает с любыми файлами
@@ -67,7 +105,7 @@ func extractFromIndex(index exif.IfdIndex, media *storage.Media) {
 
 func extractExifTags(ifd *exif.Ifd, media *storage.Media) {
 	// DateTimeOriginal - дата съёмки
-	if entries, err := ifd.FindTagWithName("DateTimeOriginal"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagDateTimeOriginal)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			if str, ok := val.(string); ok {
 				if t, err := parseExifDateTime(str); err == nil {
@@ -79,7 +117,7 @@ func extractExifTags(ifd *exif.Ifd, media *storage.Media) {
 
 	// Если DateTimeOriginal нет, пробуем DateTimeDigitized
 	if media.TakenAt.IsZero() {
-		if entries, err := ifd.FindTagWithName("DateTimeDigitized"); err == nil && len(entries) > 0 {
+		if entries, err := ifd.FindTagWithName(string(exifTagDateTimeDigitized)); err == nil && len(entries) > 0 {
 			if val, err := entries[0].Value(); err == nil {
 				if str, ok := val.(string); ok {
 					if t, err := parseExifDateTime(str); err == nil {
@@ -91,61 +129,61 @@ func extractExifTags(ifd *exif.Ifd, media *storage.Media) {
 	}
 
 	// PixelXDimension, PixelYDimension
-	if entries, err := ifd.FindTagWithName("PixelXDimension"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagPixelXDimension)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			media.Width = toInt(val)
 		}
 	}
-	if entries, err := ifd.FindTagWithName("PixelYDimension"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagPixelYDimension)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			media.Height = toInt(val)
 		}
 	}
 
 	// FocalLength
-	if entries, err := ifd.FindTagWithName("FocalLength"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagFocalLength)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			if rat, ok := val.([]exifcommon.Rational); ok && len(rat) > 0 {
 				focal := float64(rat[0].Numerator) / float64(rat[0].Denominator)
-				media.Metadata.FocalLength = fmt.Sprintf("%.0fmm", focal)
+				media.Metadata.FocalLength = fmt.Sprintf(focalLengthFormat, focal)
 			}
 		}
 	}
 
 	// FNumber (aperture)
-	if entries, err := ifd.FindTagWithName("FNumber"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagFNumber)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			if rat, ok := val.([]exifcommon.Rational); ok && len(rat) > 0 {
 				aperture := float64(rat[0].Numerator) / float64(rat[0].Denominator)
-				media.Metadata.Aperture = fmt.Sprintf("f/%.1f", aperture)
+				media.Metadata.Aperture = fmt.Sprintf(apertureFormat, aperture)
 			}
 		}
 	}
 
 	// ExposureTime (shutter speed)
-	if entries, err := ifd.FindTagWithName("ExposureTime"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagExposureTime)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			if rat, ok := val.([]exifcommon.Rational); ok && len(rat) > 0 {
 				num := rat[0].Numerator
 				denom := rat[0].Denominator
 				if num < denom {
-					media.Metadata.ShutterSpeed = fmt.Sprintf("1/%d", denom/num)
+					media.Metadata.ShutterSpeed = fmt.Sprintf(shutterSpeedFraction, denom/num)
 				} else {
-					media.Metadata.ShutterSpeed = fmt.Sprintf("%.1fs", float64(num)/float64(denom))
+					media.Metadata.ShutterSpeed = fmt.Sprintf(shutterSpeedSeconds, float64(num)/float64(denom))
 				}
 			}
 		}
 	}
 
 	// ISOSpeedRatings
-	if entries, err := ifd.FindTagWithName("ISOSpeedRatings"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagISOSpeedRatings)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			media.Metadata.ISO = toInt(val)
 		}
 	}
 
 	// LensModel
-	if entries, err := ifd.FindTagWithName("LensModel"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagLensModel)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			if str, ok := val.(string); ok {
 				media.Metadata.Lens = strings.TrimSpace(str)
@@ -157,7 +195,7 @@ func extractExifTags(ifd *exif.Ifd, media *storage.Media) {
 func extractIfd0Tags(ifd *exif.Ifd, media *storage.Media) {
 	// Make (производитель)
 	var make string
-	if entries, err := ifd.FindTagWithName("Make"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagMake)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			if str, ok := val.(string); ok {
 				make = strings.TrimSpace(str)
@@ -167,7 +205,7 @@ func extractIfd0Tags(ifd *exif.Ifd, media *storage.Media) {
 
 	// Model (модель камеры)
 	var model string
-	if entries, err := ifd.FindTagWithName("Model"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagModel)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			if str, ok := val.(string); ok {
 				model = strings.TrimSpace(str)
@@ -189,7 +227,7 @@ func extractIfd0Tags(ifd *exif.Ifd, media *storage.Media) {
 	}
 
 	// Orientation
-	if entries, err := ifd.FindTagWithName("Orientation"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagOrientation)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			media.Metadata.Orientation = toInt(val)
 		}
@@ -197,7 +235,7 @@ func extractIfd0Tags(ifd *exif.Ifd, media *storage.Media) {
 
 	// DateTime (fallback если нет DateTimeOriginal)
 	if media.TakenAt.IsZero() {
-		if entries, err := ifd.FindTagWithName("DateTime"); err == nil && len(entries) > 0 {
+		if entries, err := ifd.FindTagWithName(string(exifTagDateTime)); err == nil && len(entries) > 0 {
 			if val, err := entries[0].Value(); err == nil {
 				if str, ok := val.(string); ok {
 					if t, err := parseExifDateTime(str); err == nil {
@@ -230,7 +268,7 @@ func extractGPSTags(ifd *exif.Ifd, media *storage.Media) {
 	var lat, lon []exifcommon.Rational
 
 	// GPSLatitudeRef
-	if entries, err := ifd.FindTagWithName("GPSLatitudeRef"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagGPSLatitudeRef)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			if str, ok := val.(string); ok {
 				latRef = str
@@ -239,7 +277,7 @@ func extractGPSTags(ifd *exif.Ifd, media *storage.Media) {
 	}
 
 	// GPSLatitude
-	if entries, err := ifd.FindTagWithName("GPSLatitude"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagGPSLatitude)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			if rats, ok := val.([]exifcommon.Rational); ok {
 				lat = rats
@@ -248,7 +286,7 @@ func extractGPSTags(ifd *exif.Ifd, media *storage.Media) {
 	}
 
 	// GPSLongitudeRef
-	if entries, err := ifd.FindTagWithName("GPSLongitudeRef"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagGPSLongitudeRef)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			if str, ok := val.(string); ok {
 				lonRef = str
@@ -257,7 +295,7 @@ func extractGPSTags(ifd *exif.Ifd, media *storage.Media) {
 	}
 
 	// GPSLongitude
-	if entries, err := ifd.FindTagWithName("GPSLongitude"); err == nil && len(entries) > 0 {
+	if entries, err := ifd.FindTagWithName(string(exifTagGPSLongitude)); err == nil && len(entries) > 0 {
 		if val, err := entries[0].Value(); err == nil {
 			if rats, ok := val.([]exifcommon.Rational); ok {
 				lon = rats
@@ -281,9 +319,9 @@ func dmsToDecimal(dms []exifcommon.Rational, ref string) float64 {
 	minutes := float64(dms[1].Numerator) / float64(dms[1].Denominator)
 	seconds := float64(dms[2].Numerator) / float64(dms[2].Denominator)
 
-	decimal := degrees + minutes/60 + seconds/3600
+	decimal := degrees + minutes/secondsPerMinute + seconds/secondsPerDegree
 
-	if ref == "S" || ref == "W" {
+	if ref == gpsRefSouth || ref == gpsRefWest {
 		decimal = -decimal
 	}
 
@@ -293,10 +331,10 @@ func dmsToDecimal(dms []exifcommon.Rational, ref string) float64 {
 func parseExifDateTime(s string) (time.Time, error) {
 	// EXIF формат: "2006:01:02 15:04:05"
 	s = strings.TrimSpace(s)
-	if s == "" || s == "0000:00:00 00:00:00" {
+	if s == "" || s == exifDateTimeZero {
 		return time.Time{}, fmt.Errorf("empty or zero datetime")
 	}
-	return time.Parse("2006:01:02 15:04:05", s)
+	return time.Parse(exifDateTimeFormat, s)
 }
 
 func toInt(val interface{}) int {

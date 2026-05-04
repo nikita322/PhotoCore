@@ -13,15 +13,17 @@ import (
 	"github.com/photocore/photocore/internal/storage"
 )
 
+const defaultDuplicateSimilarityThreshold = 10
+
 // Scanner сканирует файловую систему для поиска медиа-файлов
 type Scanner struct {
 	cfg   *config.Config
 	store *storage.Store
 
-	mu        sync.RWMutex
-	scanning  bool
-	progress  ScanProgress
-	stopChan  chan struct{}
+	mu       sync.RWMutex
+	scanning bool
+	progress ScanProgress
+	stopChan chan struct{}
 }
 
 // ScanProgress содержит информацию о прогрессе сканирования
@@ -196,7 +198,7 @@ func (s *Scanner) scan() {
 				media.Checksum = existing.Checksum
 				media.ImageHash = existing.ImageHash
 				// Не перезаписываем метаданные, если они уже есть
-				if existing.TakenAt.Year() > 1900 {
+				if !existing.TakenAt.IsZero() {
 					media.TakenAt = existing.TakenAt
 					media.Metadata = existing.Metadata
 				}
@@ -225,7 +227,7 @@ func (s *Scanner) scan() {
 			// Гибридный подход: 1) размер ±10%, 2) SHA256, 3) pHash
 			if existing == nil {
 				isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
-				dupResult, err := s.store.CheckDuplicate(media.Size, media.Checksum, media.ImageHash, isImage, 10)
+				dupResult, err := s.store.CheckDuplicate(media.Size, media.Checksum, media.ImageHash, isImage, defaultDuplicateSimilarityThreshold)
 				if err != nil {
 					logger.InfoLog.Printf("Error checking duplicates for %s: %v", path, err)
 				} else if dupResult.IsDuplicate {
@@ -240,7 +242,7 @@ func (s *Scanner) scan() {
 					// Перемещаем в корзину
 					s.store.SoftDeleteMedia(media.ID)
 
-					if dupResult.Type == "exact" {
+					if dupResult.Type == storage.DuplicateTypeExact {
 						logger.InfoLog.Printf("Duplicate moved to trash: %s (exact copy of %s)", path, dupResult.ExistingID)
 					} else {
 						logger.InfoLog.Printf("Duplicate moved to trash: %s (similar to %s, distance=%d)", path, dupResult.ExistingID, dupResult.Distance)

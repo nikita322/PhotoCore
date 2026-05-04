@@ -18,6 +18,12 @@ type MediaCache struct {
 	statsCache *Cache
 }
 
+const (
+	mediaCachePrefix = "media:"
+	dirCachePrefix   = "dir:"
+	statsCacheKey    = "stats"
+)
+
 // NewMediaCache создает новый медиа-кэш
 func NewMediaCache() *MediaCache {
 	return &MediaCache{
@@ -41,7 +47,7 @@ func NewMediaCache() *MediaCache {
 
 // GetMedia получает медиа из кэша
 func (mc *MediaCache) GetMedia(id string) (*storage.Media, bool) {
-	val, found := mc.mediaCache.Get("media:" + id)
+	val, found := mc.mediaCache.Get(mediaCachePrefix + id)
 	if !found {
 		return nil, false
 	}
@@ -53,17 +59,17 @@ func (mc *MediaCache) GetMedia(id string) (*storage.Media, bool) {
 
 // SetMedia сохраняет медиа в кэш
 func (mc *MediaCache) SetMedia(media *storage.Media) {
-	mc.mediaCache.Set("media:"+media.ID, media)
+	mc.mediaCache.Set(mediaCachePrefix+media.ID, media)
 }
 
 // DeleteMedia удаляет медиа из кэша
 func (mc *MediaCache) DeleteMedia(id string) {
-	mc.mediaCache.Delete("media:" + id)
+	mc.mediaCache.Delete(mediaCachePrefix + id)
 }
 
 // GetMediaByDir получает список медиа для директории
 func (mc *MediaCache) GetMediaByDir(dir string) ([]*storage.Media, bool) {
-	val, found := mc.dirCache.Get("dir:" + dir)
+	val, found := mc.dirCache.Get(dirCachePrefix + dir)
 	if !found {
 		return nil, false
 	}
@@ -75,17 +81,17 @@ func (mc *MediaCache) GetMediaByDir(dir string) ([]*storage.Media, bool) {
 
 // SetMediaByDir сохраняет список медиа для директории
 func (mc *MediaCache) SetMediaByDir(dir string, media []*storage.Media) {
-	mc.dirCache.Set("dir:"+dir, media)
+	mc.dirCache.Set(dirCachePrefix+dir, media)
 }
 
 // InvalidateDir инвалидирует кэш директории
 func (mc *MediaCache) InvalidateDir(dir string) {
-	mc.dirCache.Delete("dir:" + dir)
+	mc.dirCache.Delete(dirCachePrefix + dir)
 }
 
 // GetStats получает статистику из кэша
 func (mc *MediaCache) GetStats() (*storage.Stats, bool) {
-	val, found := mc.statsCache.Get("stats")
+	val, found := mc.statsCache.Get(statsCacheKey)
 	if !found {
 		return nil, false
 	}
@@ -97,12 +103,12 @@ func (mc *MediaCache) GetStats() (*storage.Stats, bool) {
 
 // SetStats сохраняет статистику в кэш
 func (mc *MediaCache) SetStats(stats *storage.Stats) {
-	mc.statsCache.Set("stats", stats)
+	mc.statsCache.Set(statsCacheKey, stats)
 }
 
 // InvalidateStats инвалидирует кэш статистики
 func (mc *MediaCache) InvalidateStats() {
-	mc.statsCache.Delete("stats")
+	mc.statsCache.Delete(statsCacheKey)
 }
 
 // Clear очищает все кэши

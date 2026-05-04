@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/photocore/photocore/internal/logger"
+	"github.com/photocore/photocore/internal/media"
 )
 
 // TaskType определяет тип задачи
@@ -36,17 +37,17 @@ type Task struct {
 	Priority  TaskPriority
 	MediaID   string
 	MediaPath string
-	Size      string // для thumbnail: small, medium, large
+	Size      media.ThumbnailSize // для thumbnail: small, medium, large
 	CreatedAt time.Time
 	Attempts  int
 }
 
 // TaskResult содержит результат выполнения задачи
 type TaskResult struct {
-	TaskID    string
-	Success   bool
-	Error     error
-	Duration  time.Duration
+	TaskID     string
+	Success    bool
+	Error      error
+	Duration   time.Duration
 	OutputPath string
 }
 
@@ -55,14 +56,14 @@ type Handler func(ctx context.Context, task *Task) (*TaskResult, error)
 
 // Pool управляет пулом воркеров
 type Pool struct {
-	numWorkers   int
-	taskQueue    chan *Task
-	resultQueue  chan *TaskResult
-	handlers     map[TaskType]Handler
-	wg           sync.WaitGroup
-	ctx          context.Context
-	cancel       context.CancelFunc
-	mu           sync.RWMutex
+	numWorkers  int
+	taskQueue   chan *Task
+	resultQueue chan *TaskResult
+	handlers    map[TaskType]Handler
+	wg          sync.WaitGroup
+	ctx         context.Context
+	cancel      context.CancelFunc
+	mu          sync.RWMutex
 
 	// Статистика
 	stats Stats
@@ -82,8 +83,9 @@ func NewPool(numWorkers int, queueSize int) *Pool {
 	if numWorkers <= 0 {
 		numWorkers = runtime.NumCPU()
 	}
+	const defaultQueueSize = 1000
 	if queueSize <= 0 {
-		queueSize = 1000
+		queueSize = defaultQueueSize
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

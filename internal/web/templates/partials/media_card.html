@@ -338,7 +338,7 @@ body.select-mode .media-card.selected::after {
 
 {{/* Подготавливаем данные для onclick */}}
 {{$onClick := .OnClick}}
-{{$takenAt := ""}}{{if not $media.TakenAt.IsZero}}{{$takenAt = $media.TakenAt.Format "2006-01-02T15:04:05Z07:00"}}{{end}}
+{{$takenAt := ""}}{{if not $media.TakenAt.IsZero}}{{$takenAt = $media.TakenAt.Format (RFC3339)}}{{end}}
 {{$meta := ""}}{{if $media.Metadata.Camera}}{{$meta = $media.Metadata.Camera}}{{end}}{{if $media.Metadata.Aperture}}{{$meta = printf "%s • %s" $meta $media.Metadata.Aperture}}{{end}}{{if $media.Metadata.ShutterSpeed}}{{$meta = printf "%s • %s" $meta $media.Metadata.ShutterSpeed}}{{end}}{{if $media.Metadata.ISO}}{{$meta = printf "%s • ISO %s" $meta $media.Metadata.ISO}}{{end}}
 
 <div class="md-card md-card-elevated media-card{{if eq $mode "gallery"}} clickable{{end}}{{if eq $mode "trash"}} trash-mode{{end}}{{if .ExtraClasses}} {{.ExtraClasses}}{{end}}"

@@ -1,43 +1,23 @@
 FROM docker.io/golang:alpine
 
-# Install runtime dependencies
-RUN apk add --no-cache \
-    ffmpeg \
-    tzdata \
-    bash
+# Установка зависимостей
+RUN apk add --no-cache ffmpeg tzdata bash
 
-# Install air for hot reload
-RUN go install github.com/air-verse/air@latest
+# Создание директорий
+RUN mkdir -p /app /data /thumbs /media
 
-# Create directories
-RUN mkdir -p /app /data /thumbs /media /go-cache /src/tmp
+# Копирование зависимостей
+COPY go.mod go.sum ./
+RUN go mod download
 
-# Set Go cache directory (for read-only source mount)
-ENV GOCACHE=/go-cache
-ENV GOMODCACHE=/go-cache/mod
-ENV PATH="/root/go/bin:${PATH}"
+# Копирование исходников
+COPY . .
 
-# Copy air configuration to /root (not /src, because /src will be mounted)
-COPY .air.docker.toml /root/.air.toml
+# Сборка
+RUN go build -ldflags "-w -s -X main.BuildVersion=$(date +%s)" -o /app/photocore ./cmd/photocore
 
-# Expose port
+WORKDIR /app
 EXPOSE 6550
 
-# Run with air for automatic rebuild on code changes
-# air будет отслеживать /src и автоматически пересобирать при изменениях
-WORKDIR /src
-ENTRYPOINT ["sh", "-c", "go mod download && air -c /root/.air.toml"]
-
-# === BUILD IMAGE ===
-# podman build -t photocore .
-#
-# === RUN WITH HOT RELOAD ===
-# Контейнер автоматически пересобирается при изменении кода!
-#
-# podman run -d --name photocore \
-#   -p 6550:6550 \
-#   -v /root/containers/photocore/src:/src \
-#   -v /root/containers/photocore/gallery:/media:ro \
-#   -v /root/containers/photocore/data:/data \
-#   -v /root/containers/photocore/thumbs:/thumbs \
-#   photocore
+ENTRYPOINT ["/app/photocore"]
+CMD ["-config", "/data/config.yaml"]

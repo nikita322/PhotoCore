@@ -20,6 +20,13 @@ type contextKey string
 
 const SessionKey contextKey = "session"
 
+const (
+	authHeaderName         = "Authorization"
+	bearerPrefix           = "Bearer "
+	cookieSessionName      = "session"
+	apiTokenLifetimeMonths = 6
+)
+
 // GetSession извлекает сессию из контекста запроса
 func GetSession(r *http.Request) *storage.Session {
 	if sess, ok := r.Context().Value(SessionKey).(*storage.Session); ok {
@@ -37,7 +44,7 @@ func GetUserID(r *http.Request) string {
 }
 
 // GetUserRole возвращает роль пользователя из сессии
-func GetUserRole(r *http.Request) string {
+func GetUserRole(r *http.Request) storage.Role {
 	if sess := GetSession(r); sess != nil {
 		return sess.Role
 	}
@@ -47,47 +54,47 @@ func GetUserRole(r *http.Request) string {
 // === Permission helpers ===
 
 // CanDeleteMedia проверяет право на удаление медиа (только admin)
-func CanDeleteMedia(role string) bool {
+func CanDeleteMedia(role storage.Role) bool {
 	return role == storage.RoleAdmin
 }
 
 // CanDeleteAlbum проверяет право на удаление альбома (только admin)
-func CanDeleteAlbum(role string) bool {
+func CanDeleteAlbum(role storage.Role) bool {
 	return role == storage.RoleAdmin
 }
 
 // CanCreateAlbum проверяет право на создание альбома (admin и editor)
-func CanCreateAlbum(role string) bool {
+func CanCreateAlbum(role storage.Role) bool {
 	return role == storage.RoleAdmin || role == storage.RoleEditor
 }
 
 // CanEditAlbum проверяет право на редактирование альбома (admin и editor)
-func CanEditAlbum(role string) bool {
+func CanEditAlbum(role storage.Role) bool {
 	return role == storage.RoleAdmin || role == storage.RoleEditor
 }
 
 // CanEdit проверяет право на редактирование (admin и editor)
-func CanEdit(role string) bool {
+func CanEdit(role storage.Role) bool {
 	return role == storage.RoleAdmin || role == storage.RoleEditor
 }
 
 // CanManageTags проверяет право на добавление тегов (admin и editor)
-func CanManageTags(role string) bool {
+func CanManageTags(role storage.Role) bool {
 	return role == storage.RoleAdmin || role == storage.RoleEditor
 }
 
 // CanDeleteTags проверяет право на удаление тегов (только admin)
-func CanDeleteTags(role string) bool {
+func CanDeleteTags(role storage.Role) bool {
 	return role == storage.RoleAdmin
 }
 
 // CanManageUsers проверяет право на управление пользователями (только admin)
-func CanManageUsers(role string) bool {
+func CanManageUsers(role storage.Role) bool {
 	return role == storage.RoleAdmin
 }
 
 // IsAdmin проверяет, является ли пользователь администратором
-func IsAdmin(role string) bool {
+func IsAdmin(role storage.Role) bool {
 	return role == storage.RoleAdmin
 }
 
@@ -136,7 +143,7 @@ func (a *Auth) EnsureAdminUser() error {
 		ID:           generateID(),
 		Username:     a.cfg.Auth.AdminUsername,
 		PasswordHash: string(hash),
-		Role:         "admin",
+		Role:         storage.RoleAdmin,
 		CreatedAt:    time.Now(),
 	}
 
@@ -213,9 +220,9 @@ func (a *Auth) ValidateSession(sessionID string) (*storage.Session, error) {
 func (a *Auth) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Сначала проверяем Authorization header (для API и PWA)
-		authHeader := r.Header.Get("Authorization")
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			token := strings.TrimPrefix(authHeader, "Bearer ")
+		authHeader := r.Header.Get(authHeaderName)
+		if strings.HasPrefix(authHeader, bearerPrefix) {
+			token := strings.TrimPrefix(authHeader, bearerPrefix)
 
 			apiToken, err := a.ValidateAPIToken(token)
 			if err == nil && apiToken != nil {
@@ -238,7 +245,7 @@ func (a *Auth) Middleware(next http.Handler) http.Handler {
 		}
 
 		// Fallback на cookie-based аутентификацию
-		cookie, err := r.Cookie("session")
+		cookie, err := r.Cookie(cookieSessionName)
 		if err != nil {
 			http.Redirect(w, r, "/login", http.StatusFound)
 			return
@@ -257,7 +264,7 @@ func (a *Auth) Middleware(next http.Handler) http.Handler {
 }
 
 // RequireRole создает middleware для проверки роли
-func (a *Auth) RequireRole(roles ...string) func(http.Handler) http.Handler {
+func (a *Auth) RequireRole(roles ...storage.Role) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			session := GetSession(r)
@@ -293,7 +300,7 @@ func generateID() string {
 // === API Token Authentication ===
 
 // GenerateAPIToken создает токен для мобильного клиента
-func (a *Auth) GenerateAPIToken(userID, username, role, deviceName string) (*storage.APIToken, error) {
+func (a *Auth) GenerateAPIToken(userID, username string, role storage.Role, deviceName string) (*storage.APIToken, error) {
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
 		return nil, err
@@ -306,7 +313,7 @@ func (a *Auth) GenerateAPIToken(userID, username, role, deviceName string) (*sto
 		Role:       role,
 		DeviceName: deviceName,
 		CreatedAt:  time.Now(),
-		ExpiresAt:  time.Now().AddDate(0, 6, 0), // 6 месяцев
+		ExpiresAt:  time.Now().AddDate(0, apiTokenLifetimeMonths, 0), // 6 месяцев
 	}
 
 	if err := a.store.SaveAPIToken(token); err != nil {

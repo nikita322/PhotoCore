@@ -14,32 +14,40 @@ var (
 	errorFile *os.File
 )
 
+const (
+	defaultDirPerm   = os.FileMode(0755)
+	defaultFilePerm  = os.FileMode(0644)
+	infoLogFileName  = "info.log"
+	errorLogFileName = "error.log"
+	logFlags         = log.LstdFlags | log.Lshortfile
+)
+
 // Init инициализирует логгеры для записи только в файлы
 func Init(logsPath string) error {
 	// Создать директорию для логов
-	if err := os.MkdirAll(logsPath, 0755); err != nil {
+	if err := os.MkdirAll(logsPath, defaultDirPerm); err != nil {
 		return fmt.Errorf("failed to create logs directory: %w", err)
 	}
 
 	// Открыть info.log (append mode)
-	infoPath := filepath.Join(logsPath, "info.log")
+	infoPath := filepath.Join(logsPath, infoLogFileName)
 	var err error
-	infoFile, err = os.OpenFile(infoPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	infoFile, err = os.OpenFile(infoPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, defaultFilePerm)
 	if err != nil {
 		return fmt.Errorf("failed to create info.log: %w", err)
 	}
 
 	// Открыть error.log (append mode)
-	errorPath := filepath.Join(logsPath, "error.log")
-	errorFile, err = os.OpenFile(errorPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	errorPath := filepath.Join(logsPath, errorLogFileName)
+	errorFile, err = os.OpenFile(errorPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, defaultFilePerm)
 	if err != nil {
 		infoFile.Close()
 		return fmt.Errorf("failed to create error.log: %w", err)
 	}
 
 	// Настроить логгеры (ТОЛЬКО запись в файлы, БЕЗ stdout)
-	InfoLog = log.New(infoFile, "", log.LstdFlags|log.Lshortfile)
-	ErrorLog = log.New(errorFile, "", log.LstdFlags|log.Lshortfile)
+	InfoLog = log.New(infoFile, "", logFlags)
+	ErrorLog = log.New(errorFile, "", logFlags)
 
 	// Первая запись в лог для подтверждения что логирование работает
 	InfoLog.Printf("Logger initialized successfully. Logs directory: %s", logsPath)

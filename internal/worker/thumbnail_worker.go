@@ -42,9 +42,11 @@ func NewThumbnailService(pool *Pool, store *storage.Store, thumbGen *media.Thumb
 	return svc
 }
 
+const taskKeySeparator = ":"
+
 // QueueThumbnail добавляет задачу на генерацию превью
-func (s *ThumbnailService) QueueThumbnail(mediaID, size string) bool {
-	key := mediaID + ":" + size
+func (s *ThumbnailService) QueueThumbnail(mediaID string, size media.ThumbnailSize) bool {
+	key := mediaID + taskKeySeparator + string(size)
 
 	s.mu.Lock()
 	// Проверяем, не было ли постоянной ошибки ранее
@@ -80,13 +82,13 @@ func (s *ThumbnailService) QueueThumbnail(mediaID, size string) bool {
 
 // QueueAllThumbnails добавляет задачи на генерацию всех превью для медиа
 func (s *ThumbnailService) QueueAllThumbnails(mediaID string) {
-	for _, size := range []string{"small", "medium", "large"} {
+	for _, size := range media.AllThumbnailSizes() {
 		s.QueueThumbnail(mediaID, size)
 	}
 }
 
 // QueueBatch добавляет пакет задач
-func (s *ThumbnailService) QueueBatch(mediaIDs []string, size string) int {
+func (s *ThumbnailService) QueueBatch(mediaIDs []string, size media.ThumbnailSize) int {
 	queued := 0
 	for _, id := range mediaIDs {
 		if s.QueueThumbnail(id, size) {
@@ -118,7 +120,7 @@ func (s *ThumbnailService) PregenerateThumbnails() error {
 }
 
 func (s *ThumbnailService) handleThumbnail(ctx context.Context, task *Task) (*TaskResult, error) {
-	key := task.MediaID + ":" + task.Size
+	key := task.MediaID + taskKeySeparator + string(task.Size)
 	defer func() {
 		// Очищаем processing только если не было постоянной ошибки
 		// (markAsFailed сам очищает processing)
@@ -171,9 +173,9 @@ func (s *ThumbnailService) handleThumbnail(ctx context.Context, task *Task) (*Ta
 
 	// Обновляем путь к превью в БД
 	switch task.Size {
-	case "small":
+	case media.ThumbnailSizeSmall:
 		m.ThumbSmall = thumbPath
-	case "large":
+	case media.ThumbnailSizeLarge:
 		m.ThumbLarge = thumbPath
 	}
 
@@ -190,8 +192,8 @@ func (s *ThumbnailService) handleThumbnail(ctx context.Context, task *Task) (*Ta
 }
 
 // IsProcessing проверяет, обрабатывается ли медиа
-func (s *ThumbnailService) IsProcessing(mediaID, size string) bool {
-	key := mediaID + ":" + size
+func (s *ThumbnailService) IsProcessing(mediaID string, size media.ThumbnailSize) bool {
+	key := mediaID + taskKeySeparator + string(size)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.processing[key]
@@ -205,8 +207,8 @@ func (s *ThumbnailService) ProcessingCount() int {
 }
 
 // HasFailed проверяет, была ли постоянная ошибка при генерации превью
-func (s *ThumbnailService) HasFailed(mediaID, size string) (bool, string) {
-	key := mediaID + ":" + size
+func (s *ThumbnailService) HasFailed(mediaID string, size media.ThumbnailSize) (bool, string) {
+	key := mediaID + taskKeySeparator + string(size)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	errMsg, exists := s.failed[key]
@@ -214,8 +216,8 @@ func (s *ThumbnailService) HasFailed(mediaID, size string) (bool, string) {
 }
 
 // markAsFailed помечает превью как постоянно неудачное
-func (s *ThumbnailService) markAsFailed(mediaID, size, errMsg string) {
-	key := mediaID + ":" + size
+func (s *ThumbnailService) markAsFailed(mediaID string, size media.ThumbnailSize, errMsg string) {
+	key := mediaID + taskKeySeparator + string(size)
 	s.mu.Lock()
 	s.failed[key] = errMsg
 	delete(s.processing, key)

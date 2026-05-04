@@ -20,11 +20,36 @@ import (
 	"github.com/photocore/photocore/internal/storage"
 )
 
+// ThumbnailSize определяет размер превью
+type ThumbnailSize string
+
+const (
+	ThumbnailSizeSmall  ThumbnailSize = "small"
+	ThumbnailSizeMedium ThumbnailSize = "medium"
+	ThumbnailSizeLarge  ThumbnailSize = "large"
+)
+
+// AllThumbnailSizes возвращает все поддерживаемые размеры превью
+func AllThumbnailSizes() []ThumbnailSize {
+	return []ThumbnailSize{ThumbnailSizeSmall, ThumbnailSizeMedium, ThumbnailSizeLarge}
+}
+
 // ThumbnailGenerator генерирует превью для медиа-файлов
 type ThumbnailGenerator struct {
 	cfg       *config.Config
 	cachePath string
 }
+
+const (
+	thumbDirName         = "thumbs"
+	thumbFileFormat      = "%s_%s.jpg"
+	defaultDirPerm       = os.FileMode(0755)
+	ffmpegTimeSeek       = "00:00:01"
+	ffmpegFrames         = "1"
+	ffmpegFormat         = "image2pipe"
+	ffmpegVideoCodec     = "mjpeg"
+	orientationUnchanged = 1
+)
 
 // NewThumbnailGenerator создает новый генератор превью
 func NewThumbnailGenerator(cfg *config.Config) *ThumbnailGenerator {
@@ -41,12 +66,12 @@ func (t *ThumbnailGenerator) EnsureCacheDir() error {
 }
 
 // GetThumbnailPath возвращает путь к превью
-func (t *ThumbnailGenerator) GetThumbnailPath(mediaID string, size string) string {
-	return filepath.Join(t.cachePath, "thumbs", fmt.Sprintf("%s_%s.jpg", mediaID, size))
+func (t *ThumbnailGenerator) GetThumbnailPath(mediaID string, size ThumbnailSize) string {
+	return filepath.Join(t.cachePath, thumbDirName, fmt.Sprintf(thumbFileFormat, mediaID, size))
 }
 
 // ThumbnailExists проверяет существование превью
-func (t *ThumbnailGenerator) ThumbnailExists(mediaID string, size string) bool {
+func (t *ThumbnailGenerator) ThumbnailExists(mediaID string, size ThumbnailSize) bool {
 	path := t.GetThumbnailPath(mediaID, size)
 	_, err := os.Stat(path)
 	return err == nil
@@ -54,15 +79,14 @@ func (t *ThumbnailGenerator) ThumbnailExists(mediaID string, size string) bool {
 
 // DeleteThumbnails удаляет все превью для медиа-файла
 func (t *ThumbnailGenerator) DeleteThumbnails(mediaID string) {
-	sizes := []string{"small", "medium", "large"}
-	for _, size := range sizes {
+	for _, size := range AllThumbnailSizes() {
 		path := t.GetThumbnailPath(mediaID, size)
 		os.Remove(path) // игнорируем ошибки - файла может не быть
 	}
 }
 
 // GenerateThumbnail генерирует превью для медиа-файла
-func (t *ThumbnailGenerator) GenerateThumbnail(media *storage.Media, size string) (string, error) {
+func (t *ThumbnailGenerator) GenerateThumbnail(media *storage.Media, size ThumbnailSize) (string, error) {
 	if err := t.EnsureCacheDir(); err != nil {
 		return "", err
 	}
@@ -94,11 +118,11 @@ func (t *ThumbnailGenerator) GenerateThumbnail(media *storage.Media, size string
 	// Определяем размер
 	var maxSize int
 	switch size {
-	case "small":
+	case ThumbnailSizeSmall:
 		maxSize = t.cfg.Thumbnails.Small
-	case "medium":
+	case ThumbnailSizeMedium:
 		maxSize = t.cfg.Thumbnails.Medium
-	case "large":
+	case ThumbnailSizeLarge:
 		maxSize = t.cfg.Thumbnails.Large
 	default:
 		maxSize = t.cfg.Thumbnails.Small
@@ -122,7 +146,7 @@ func (t *ThumbnailGenerator) GenerateThumbnail(media *storage.Media, size string
 	}
 
 	// Применяем ориентацию из EXIF
-	if media.Metadata.Orientation > 1 {
+	if media.Metadata.Orientation > orientationUnchanged {
 		img = applyOrientation(img, media.Metadata.Orientation)
 	}
 
@@ -182,10 +206,10 @@ func (t *ThumbnailGenerator) extractVideoFrame(path string) (image.Image, error)
 	// ffmpeg -i video.mp4 -ss 00:00:01 -vframes 1 -f image2pipe -vcodec mjpeg -
 	cmd := exec.Command(t.cfg.Tools.Ffmpeg,
 		"-i", path,
-		"-ss", "00:00:01",
-		"-vframes", "1",
-		"-f", "image2pipe",
-		"-vcodec", "mjpeg",
+		"-ss", ffmpegTimeSeek,
+		"-vframes", ffmpegFrames,
+		"-f", ffmpegFormat,
+		"-vcodec", ffmpegVideoCodec,
 		"-",
 	)
 
@@ -194,9 +218,9 @@ func (t *ThumbnailGenerator) extractVideoFrame(path string) (image.Image, error)
 		// Пробуем с начала файла, если 1 секунда недоступна
 		cmd = exec.Command(t.cfg.Tools.Ffmpeg,
 			"-i", path,
-			"-vframes", "1",
-			"-f", "image2pipe",
-			"-vcodec", "mjpeg",
+			"-vframes", ffmpegFrames,
+			"-f", ffmpegFormat,
+			"-vcodec", ffmpegVideoCodec,
 			"-",
 		)
 		output, err = cmd.Output()

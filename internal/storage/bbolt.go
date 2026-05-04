@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,21 @@ import (
 	"github.com/photocore/photocore/internal/logger"
 	bolt "go.etcd.io/bbolt"
 )
+
+const (
+	favoriteGlobalKey                   = "global"
+	defaultSearchLimit                  = 50
+	sizeToleranceLower                  = 0.9
+	sizeToleranceUpper                  = 1.1
+	defaultDuplicateSimilarityThreshold = 10
+)
+
+var errFound = errors.New("found")
+
+// FormatYearMonth форматирует дату как YYYY-MM для группировки timeline
+func FormatYearMonth(t time.Time) string {
+	return fmt.Sprintf("%04d-%02d", t.Year(), t.Month())
+}
 
 // Имена buckets
 var (
@@ -153,8 +169,8 @@ func (s *Store) SaveMedia(m *Media) error {
 		}
 
 		// Обновляем индекс по дате (YYYY-MM)
-		if !m.TakenAt.IsZero() && m.TakenAt.Year() > 1900 {
-			dateKey := m.TakenAt.Format("2006-01")
+		if !m.TakenAt.IsZero() {
+			dateKey := FormatYearMonth(m.TakenAt)
 			if err := addToIndex(tx, bucketIdxDate, dateKey, m.ID); err != nil {
 				return err
 			}
@@ -205,7 +221,7 @@ func (s *Store) DeleteMedia(id string) error {
 
 	// Удаляем из избранного
 	s.db.Update(func(tx *bolt.Tx) error {
-		return removeFromIndex(tx, bucketFavorites, "global", id)
+		return removeFromIndex(tx, bucketFavorites, favoriteGlobalKey, id)
 	})
 
 	// Удаляем из per-user избранного
@@ -221,8 +237,8 @@ func (s *Store) DeleteMedia(id string) error {
 		}
 
 		// Удаляем из индекса даты
-		if !media.TakenAt.IsZero() && media.TakenAt.Year() > 1900 {
-			dateKey := media.TakenAt.Format("2006-01")
+		if !media.TakenAt.IsZero() {
+			dateKey := FormatYearMonth(media.TakenAt)
 			if err := removeFromIndex(tx, bucketIdxDate, dateKey, id); err != nil {
 				return err
 			}
@@ -726,9 +742,9 @@ func (s *Store) ToggleFavorite(mediaID string) (bool, error) {
 		}
 
 		if media.IsFavorite {
-			return addToIndex(tx, bucketFavorites, "global", mediaID)
+			return addToIndex(tx, bucketFavorites, favoriteGlobalKey, mediaID)
 		}
-		return removeFromIndex(tx, bucketFavorites, "global", mediaID)
+		return removeFromIndex(tx, bucketFavorites, favoriteGlobalKey, mediaID)
 	})
 
 	return media.IsFavorite, err
@@ -760,15 +776,15 @@ func (s *Store) SetFavorite(mediaID string, isFavorite bool) error {
 		}
 
 		if isFavorite {
-			return addToIndex(tx, bucketFavorites, "global", mediaID)
+			return addToIndex(tx, bucketFavorites, favoriteGlobalKey, mediaID)
 		}
-		return removeFromIndex(tx, bucketFavorites, "global", mediaID)
+		return removeFromIndex(tx, bucketFavorites, favoriteGlobalKey, mediaID)
 	})
 }
 
 // ListFavorites возвращает все избранные медиа
 func (s *Store) ListFavorites() ([]*Media, error) {
-	ids, err := s.getIndex(bucketFavorites, "global")
+	ids, err := s.getIndex(bucketFavorites, favoriteGlobalKey)
 	if err != nil {
 		return nil, err
 	}
@@ -1050,7 +1066,7 @@ func decrementTagCount(tx *bolt.Tx, tagName string) error {
 // Search выполняет поиск медиа
 func (s *Store) Search(query *SearchQuery) (*SearchResult, error) {
 	if query.Limit <= 0 {
-		query.Limit = 50
+		query.Limit = defaultSearchLimit
 	}
 
 	allMedia, err := s.ListAllMedia()
@@ -1152,10 +1168,10 @@ func (s *Store) GetTimeline() ([]*TimelineGroup, error) {
 	groups := make(map[string]*TimelineGroup)
 	for _, m := range allMedia {
 		var date string
-		if !m.TakenAt.IsZero() && m.TakenAt.Year() > 1900 {
-			date = m.TakenAt.Format("2006-01")
+		if !m.TakenAt.IsZero() {
+			date = FormatYearMonth(m.TakenAt)
 		} else {
-			date = m.ModifiedAt.Format("2006-01")
+			date = FormatYearMonth(m.ModifiedAt)
 		}
 
 		if groups[date] == nil {
@@ -1194,10 +1210,10 @@ func (s *Store) GetTimelineMedia(period string) ([]*Media, error) {
 	var result []*Media
 	for _, m := range allMedia {
 		var date string
-		if !m.TakenAt.IsZero() && m.TakenAt.Year() > 1900 {
-			date = m.TakenAt.Format("2006-01")
+		if !m.TakenAt.IsZero() {
+			date = FormatYearMonth(m.TakenAt)
 		} else {
-			date = m.ModifiedAt.Format("2006-01")
+			date = FormatYearMonth(m.ModifiedAt)
 		}
 
 		if date == period {
@@ -1423,7 +1439,7 @@ func (s *Store) FindDuplicates(similarityThreshold int) ([]*DuplicateGroup, erro
 	for _, mediaList := range checksumGroups {
 		if len(mediaList) > 1 {
 			groups = append(groups, &DuplicateGroup{
-				Type:     "exact",
+				Type:     DuplicateTypeExact,
 				Media:    mediaList,
 				Distance: 0,
 			})
@@ -1446,7 +1462,7 @@ func (s *Store) FindDuplicates(similarityThreshold int) ([]*DuplicateGroup, erro
 			// Проверяем, что это не уже найденный точный дубликат
 			isExact := false
 			for _, g := range groups {
-				if g.Type == "exact" {
+				if g.Type == DuplicateTypeExact {
 					for _, em := range g.Media {
 						if em.ID == m.ID {
 							isExact = true
@@ -1490,7 +1506,7 @@ func (s *Store) FindDuplicates(similarityThreshold int) ([]*DuplicateGroup, erro
 
 		if len(similarGroup) > 1 {
 			groups = append(groups, &DuplicateGroup{
-				Type:     "similar",
+				Type:     DuplicateTypeSimilar,
 				Media:    similarGroup,
 				Distance: similarityThreshold,
 			})
@@ -1532,14 +1548,14 @@ func (s *Store) ChecksumExists(checksum string) (string, error) {
 			}
 			if media.Checksum == checksum {
 				existingID = media.ID
-				return fmt.Errorf("found") // Прерываем поиск
+				return errFound // Прерываем поиск
 			}
 			return nil
 		})
 	})
 
-	// Игнорируем "found" ошибку - это просто способ прервать итерацию
-	if err != nil && err.Error() != "found" {
+	// Игнорируем errFound - это просто способ прервать итерацию
+	if err != nil && !errors.Is(err, errFound) {
 		return "", err
 	}
 
@@ -1550,8 +1566,8 @@ func (s *Store) ChecksumExists(checksum string) (string, error) {
 // Это быстрый первичный фильтр для поиска потенциальных дубликатов
 func (s *Store) FindMediaBySizeRange(size int64) ([]*Media, error) {
 	// ±10% от размера
-	minSize := int64(float64(size) * 0.9)
-	maxSize := int64(float64(size) * 1.1)
+	minSize := int64(float64(size) * sizeToleranceLower)
+	maxSize := int64(float64(size) * sizeToleranceUpper)
 
 	var result []*Media
 	err := s.db.View(func(tx *bolt.Tx) error {
@@ -1577,10 +1593,10 @@ func (s *Store) FindMediaBySizeRange(size int64) ([]*Media, error) {
 
 // DuplicateCheckResult результат проверки на дубликат
 type DuplicateCheckResult struct {
-	IsDuplicate bool   // Является ли дубликатом
-	Type        string // "exact" или "similar"
-	ExistingID  string // ID существующего медиа
-	Distance    int    // Расстояние Хэмминга (для similar)
+	IsDuplicate bool          // Является ли дубликатом
+	Type        DuplicateType // exact или similar
+	ExistingID  string        // ID существующего медиа
+	Distance    int           // Расстояние Хэмминга (для similar)
 }
 
 // CheckDuplicate выполняет гибридную проверку на дубликат:
@@ -1598,7 +1614,7 @@ func (s *Store) CheckDuplicate(size int64, checksum string, imageHash uint64, is
 		for _, m := range candidates {
 			if m.Checksum == checksum {
 				result.IsDuplicate = true
-				result.Type = "exact"
+				result.Type = DuplicateTypeExact
 				result.ExistingID = m.ID
 				result.Distance = 0
 				return result, nil
@@ -1619,7 +1635,7 @@ func (s *Store) CheckDuplicate(size int64, checksum string, imageHash uint64, is
 			distance := hammingDistance(imageHash, m.ImageHash)
 			if distance <= similarityThreshold {
 				result.IsDuplicate = true
-				result.Type = "similar"
+				result.Type = DuplicateTypeSimilar
 				result.ExistingID = m.ID
 				result.Distance = distance
 				return result, nil
@@ -1632,13 +1648,13 @@ func (s *Store) CheckDuplicate(size int64, checksum string, imageHash uint64, is
 
 // GetDuplicatesStats возвращает статистику дубликатов
 func (s *Store) GetDuplicatesStats() (exactCount int, similarCount int, savedSpace int64, err error) {
-	groups, err := s.FindDuplicates(10)
+	groups, err := s.FindDuplicates(defaultDuplicateSimilarityThreshold)
 	if err != nil {
 		return 0, 0, 0, err
 	}
 
 	for _, g := range groups {
-		if g.Type == "exact" {
+		if g.Type == DuplicateTypeExact {
 			exactCount += len(g.Media) - 1 // Количество лишних копий
 			// Считаем сколько места можно освободить
 			for i := 1; i < len(g.Media); i++ {

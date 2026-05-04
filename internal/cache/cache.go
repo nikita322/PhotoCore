@@ -38,16 +38,22 @@ type Config struct {
 	OnEvicted         func(key string, value interface{})
 }
 
+const (
+	defaultExpiration      = 5 * time.Minute
+	defaultCleanupInterval = 10 * time.Minute
+	defaultMaxItems        = 10000
+)
+
 // New создает новый кэш
 func New(config Config) *Cache {
 	if config.DefaultExpiration == 0 {
-		config.DefaultExpiration = 5 * time.Minute
+		config.DefaultExpiration = defaultExpiration
 	}
 	if config.CleanupInterval == 0 {
-		config.CleanupInterval = 10 * time.Minute
+		config.CleanupInterval = defaultCleanupInterval
 	}
 	if config.MaxItems == 0 {
-		config.MaxItems = 10000
+		config.MaxItems = defaultMaxItems
 	}
 
 	c := &Cache{

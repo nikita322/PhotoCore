@@ -6,11 +6,17 @@
 *.so
 *.md
 *.dylib
-photocore
-photocore-*
+/photocore
+/photocore-*
 
 # Test binary
 *.test
+
+# Build artifacts
+build/
+dist/
+coverage.out
+coverage.html
 
 # Go workspace
 go.work
