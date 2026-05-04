@@ -1,22 +1,27 @@
-FROM docker.io/golang:alpine
+# syntax=docker/dockerfile:1
 
-# Установка зависимостей
-RUN apk add --no-cache ffmpeg tzdata bash
+# Build stage
+FROM docker.io/golang:alpine AS builder
 
-# Создание директорий
-RUN mkdir -p /app /data /thumbs /media
+RUN apk add --no-cache bash
+WORKDIR /app
 
-# Копирование зависимостей
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Копирование исходников
 COPY . .
+RUN go build -ldflags "-w -s -X main.BuildVersion=$(date +%s)" -o photocore ./cmd/photocore
 
-# Сборка
-RUN go build -ldflags "-w -s -X main.BuildVersion=$(date +%s)" -o /app/photocore ./cmd/photocore
+# Runtime stage
+FROM docker.io/alpine:latest
+
+RUN apk add --no-cache ffmpeg tzdata dcraw ca-certificates bash
+
+RUN mkdir -p /app /data /thumbs /media
 
 WORKDIR /app
+COPY --from=builder /app/photocore /app/photocore
+
 EXPOSE 6550
 
 ENTRYPOINT ["/app/photocore"]

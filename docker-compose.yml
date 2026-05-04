@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  photocore:
+    build:
+      context: ./src
+      dockerfile: ../Dockerfile
+    image: photocore:latest
+    container_name: photocore
+    ports:
+      - "6550:6550"
+    volumes:
+      - ./data:/data
+      - ./thumbs:/thumbs
+      - ./gallery:/media:ro
+      - ./config.yaml:/data/config.yaml:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    restart: unless-stopped

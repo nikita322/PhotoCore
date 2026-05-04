@@ -320,11 +320,11 @@ body.select-mode .media-card.selected::after {
         <img data-src="/media/{{$media.ID}}/thumb/small" alt="{{$media.Filename}}" loading="lazy">
     {{else if eq $mode "gallery"}}
         <div class="md-card-media" style="aspect-ratio: 1;">
-            <img data-src="/media/{{$media.ID}}/thumb" alt="{{$media.Filename}}" loading="lazy" onload="this.classList.add('loaded'); this.classList.remove('loading')" onerror="this.classList.add('error'); this.classList.remove('loading')">
+            <img data-src="/media/{{$media.ID}}/thumb" alt="{{$media.Filename}}" loading="lazy" onload="this.classList.add('loaded'); this.classList.remove('loading'); this.classList.remove('error')" onerror="this.classList.add('error'); this.classList.remove('loading'); this.classList.remove('loaded')">
         </div>
     {{else}}
         <div class="md-card-media" style="aspect-ratio: 1;">
-            <img src="/media/{{$media.ID}}/thumb/small" alt="{{$media.Filename}}" loading="lazy" onload="this.classList.add('loaded'); this.classList.remove('loading')" onerror="this.classList.add('error'); this.classList.remove('loading')">
+            <img src="/media/{{$media.ID}}/thumb/small" alt="{{$media.Filename}}" loading="lazy" onload="this.classList.add('loaded'); this.classList.remove('loading'); this.classList.remove('error')" onerror="this.classList.add('error'); this.classList.remove('loading'); this.classList.remove('loaded')">
         </div>
     {{end}}
 
