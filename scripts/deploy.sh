@@ -63,7 +63,7 @@ log "Building runtime image..."
 cd "$PROJECT_DIR"
 podman build -t photocore:latest -f - . <<'EOF'
 FROM docker.io/alpine:latest
-RUN apk add --no-cache ffmpeg tzdata dcraw ca-certificates bash
+RUN apk add --no-cache ffmpeg tzdata ca-certificates bash
 RUN mkdir -p /app /data /thumbs /media
 WORKDIR /app
 COPY photocore /app/photocore
