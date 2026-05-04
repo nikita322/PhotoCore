@@ -41,7 +41,6 @@ type ThumbnailGenerator struct {
 }
 
 const (
-	thumbDirName         = "thumbs"
 	thumbFileFormat      = "%s_%s.jpg"
 	defaultDirPerm       = os.FileMode(0755)
 	ffmpegTimeSeek       = "00:00:01"
@@ -61,13 +60,12 @@ func NewThumbnailGenerator(cfg *config.Config) *ThumbnailGenerator {
 
 // EnsureCacheDir создает директорию кэша если не существует
 func (t *ThumbnailGenerator) EnsureCacheDir() error {
-	thumbDir := filepath.Join(t.cachePath, "thumbs")
-	return os.MkdirAll(thumbDir, 0755)
+	return os.MkdirAll(t.cachePath, 0755)
 }
 
 // GetThumbnailPath возвращает путь к превью
 func (t *ThumbnailGenerator) GetThumbnailPath(mediaID string, size ThumbnailSize) string {
-	return filepath.Join(t.cachePath, thumbDirName, fmt.Sprintf(thumbFileFormat, mediaID, size))
+	return filepath.Join(t.cachePath, fmt.Sprintf(thumbFileFormat, mediaID, size))
 }
 
 // ThumbnailExists проверяет существование превью
