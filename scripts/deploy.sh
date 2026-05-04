@@ -45,34 +45,15 @@ cd "$SRC_DIR"
 log "Pulling latest changes..."
 git pull origin main
 
-# 2. Сборка бинарника в контейнере с кэшированием go модулей
-# Это быстрее полной пересборки образа, т.к. go mod download кэшируется
-log "Building binary with cached go modules..."
-podman run --rm \
-    -v "$(pwd)":/src \
-    -v photocore-go-mod-cache:/go/pkg/mod \
-    -w /src \
-    docker.io/golang:alpine \
-    sh -c "go build -ldflags \"-w -s -X main.BuildVersion=\$(date +%s)\" -o photocore ./cmd/photocore"
-
-# 3. Копируем бинарник в project dir для runtime-образа
-cp photocore "$PROJECT_DIR/photocore"
-
-# 4. Сборка runtime образа (быстро — только COPY бинарника)
+# 2. Сборка runtime образа (включает go build + dcraw build)
+# Go-модули кэшируются через volume photocore-go-mod-cache
 log "Building runtime image..."
-cd "$PROJECT_DIR"
-podman build -t photocore:latest -f - . <<'EOF'
-FROM docker.io/alpine:latest
-RUN apk add --no-cache ffmpeg tzdata ca-certificates bash
-RUN mkdir -p /app /data /thumbs /media
-WORKDIR /app
-COPY photocore /app/photocore
-EXPOSE 6550
-ENTRYPOINT ["/app/photocore"]
-CMD ["-config", "/data/config.yaml"]
-EOF
+podman build \
+    -t photocore:latest \
+    -v photocore-go-mod-cache:/go/pkg/mod \
+    .
 
-# 5. Перезапуск контейнера
+# 3. Перезапуск контейнера
 log "Restarting container..."
 podman stop photocore 2>/dev/null || true
 podman rm photocore 2>/dev/null || true
