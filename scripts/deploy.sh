@@ -50,7 +50,6 @@ git pull origin main
 log "Building runtime image..."
 podman build \
     -t photocore:latest \
-    -v photocore-go-mod-cache:/go/pkg/mod \
     .
 
 # 3. Перезапуск контейнера
