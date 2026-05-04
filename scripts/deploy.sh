@@ -2,10 +2,17 @@
 set -euo pipefail
 
 # Быстрый деплой PhotoCore на сервере
-# Требования: podman, podman-compose, git
+# Требования: podman, git
+# Работает из project/scripts/deploy.sh или project/src/scripts/deploy.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Если скрипт находится в src/scripts/, поднимаемся на уровень выше
+if [ "$(basename "$PROJECT_DIR")" = "src" ]; then
+    PROJECT_DIR="$(dirname "$PROJECT_DIR")"
+fi
+
 SRC_DIR="$PROJECT_DIR/src"
 
 # Цвета
@@ -82,5 +89,3 @@ podman run -d --name photocore \
 
 log "Done! Container started:"
 podman ps | grep photocore
-
-warn "If you prefer podman-compose, use: podman-compose up -d --build"
