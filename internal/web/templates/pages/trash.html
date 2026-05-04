@@ -141,7 +141,7 @@
 
     <div class="grid">
         {{range .TrashItems}}
-        {{template "media_card" (dict "Media" . "Mode" "trash" "DuplicateOf" .DuplicateOf "DaysRemaining" .DaysRemaining "ShowFavorite" false)}}
+        {{template "media_card" (dict "Media" . "Mode" "trash" "DuplicateOf" .DuplicateOf "DaysRemaining" .DaysRemaining)}}
         {{end}}
     </div>
     {{else}}

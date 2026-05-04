@@ -9,7 +9,6 @@ MEDIA CARD COMPONENT - Переиспользуемый компонент ка�
 Параметры (передаются через точку):
   .Media           - объект медиа (обязательно)
   .Mode            - режим: "gallery", "trash", "favorites", "album", "search" (по умолчанию "gallery")
-  .ShowFavorite    - показывать кнопку избранного (по умолчанию true)
   .ShowOverlay     - показывать overlay с именем (по умолчанию true)
   .OnClick         - JS код для onclick или пусто
   .CustomActions   - дополнительные кнопки (HTML)
@@ -94,32 +93,6 @@ MEDIA CARD COMPONENT - Переиспользуемый компонент ка�
 
 .media-card .badge.raw {
     background-color: var(--md-tertiary);
-}
-
-/* === FAVORITE BADGE === */
-.media-card .favorite-badge {
-    position: absolute;
-    top: var(--spacing-sm);
-    right: var(--spacing-sm);
-    z-index: 5;
-    cursor: pointer;
-    filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
-    transition: transform var(--transition-fast);
-}
-
-.media-card .favorite-badge:hover {
-    transform: scale(1.15);
-}
-
-.media-card .favorite-badge svg {
-    width: 20px;
-    height: 20px;
-    fill: var(--md-on-surface-medium);
-    transition: fill var(--transition-fast);
-}
-
-.media-card .favorite-badge.active svg {
-    fill: var(--md-favorite);
 }
 
 /* === REMOVE BUTTON (для альбомов) === */
@@ -319,7 +292,6 @@ body.select-mode .media-card.selected::after {
 Параметры (передаются через точку):
   .Media           - объект медиа (обязательно)
   .Mode            - режим: "gallery", "trash", "favorites", "album" (по умолчанию "gallery")
-  .ShowFavorite    - показывать кнопку избранного (по умолчанию true)
   .ShowOverlay     - показывать overlay с именем (по умолчанию true)
   .OnClick         - JS код для onclick или пусто
   .CustomActions   - дополнительные кнопки (HTML)
@@ -329,7 +301,6 @@ body.select-mode .media-card.selected::after {
 
 {{$media := .Media}}
 {{$mode := .Mode}}{{if not $mode}}{{$mode = "gallery"}}{{end}}
-{{$showFavorite := true}}{{if eq .ShowFavorite false}}{{$showFavorite = false}}{{end}}
 {{$showOverlay := true}}{{if eq .ShowOverlay false}}{{$showOverlay = false}}{{end}}
 
 {{/* Подготавливаем данные для onclick */}}
@@ -365,13 +336,6 @@ body.select-mode .media-card.selected::after {
     {{end}}
     {{if .DuplicateOf}}
         <span class="md-chip duplicate-badge">Дубликат</span>
-    {{end}}
-
-    {{/* Кнопка избранного */}}
-    {{if $showFavorite}}
-        <button class="md-icon-button favorite-badge" onclick="toggleFavorite('{{$media.ID}}', event)">
-            {{template "icon-star-filled"}}
-        </button>
     {{end}}
 
     {{/* Дополнительные действия */}}
