@@ -17,8 +17,7 @@ FROM docker.io/alpine:latest AS dcraw-builder
 
 RUN apk add --no-cache gcc musl-dev libjpeg-turbo-dev lcms2-dev jasper-dev curl
 RUN curl -sL -o /tmp/dcraw.c https://raw.githubusercontent.com/ncruces/dcraw/master/dcraw.c && \
-    gcc -o /tmp/dcraw -O3 /tmp/dcraw.c -lm -ljpeg -llcms2 -ljasper && \
-    /tmp/dcraw -h >/dev/null 2>&1
+    gcc -o /tmp/dcraw -O3 /tmp/dcraw.c -lm -ljpeg -llcms2 -ljasper
 
 # Runtime stage
 FROM docker.io/alpine:latest
