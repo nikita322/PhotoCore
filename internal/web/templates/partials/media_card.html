@@ -278,7 +278,6 @@ body.select-mode .media-card.selected::after {
    IMAGE PLACEHOLDER - Общий для всех типов карточек
    =================================================================== */
 
-.media-card::before,
 .md-card-media::before {
     content: '';
     position: absolute;
@@ -293,8 +292,6 @@ body.select-mode .media-card.selected::after {
     z-index: 0;
 }
 
-.media-card:has(img.loaded)::before,
-.media-card:has(img.error)::before,
 .md-card-media:has(img.loaded)::before,
 .md-card-media:has(img.error)::before {
     display: none;
