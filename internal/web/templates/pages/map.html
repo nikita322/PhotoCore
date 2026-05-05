@@ -143,7 +143,7 @@ fetch('/api/geo')
                 </div>
             `;
 
-            marker.bindPopup(popup, { minWidth: 220, maxWidth: 260 });
+            marker.bindPopup(popup);
             markers.addLayer(marker);
             bounds.push([point.lat, point.lon]);
         });
