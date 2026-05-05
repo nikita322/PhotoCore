@@ -395,31 +395,6 @@ a:hover { color: var(--accent-hover); }
   border: 1px solid var(--md-outline-variant);
 }
 
-/* Card subcomponents */
-.md-card-media {
-  aspect-ratio: 16/9;
-  overflow: hidden;
-  background-color: var(--md-surface-container-high);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.md-card-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: opacity 0.3s;
-}
-
-/* Состояния загрузки изображений */
-.md-card-media img.loading { opacity: 0; }
-.md-card-media img.loaded { opacity: 1; }
-.md-card-media img.error { opacity: 0.3; }
-
-/* Image placeholder определён ниже (общий для всех карточек) */
-
 .md-card-content {
   padding: var(--md-spacing-4);
 }

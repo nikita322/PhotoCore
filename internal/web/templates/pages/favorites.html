@@ -17,7 +17,7 @@
     {{if .Media}}
     <div class="grid">
         {{range .Media}}
-        {{template "media_card" (dict "Media" . "Mode" "gallery")}}
+        {{template "media_card" (dict "Media" . "Mode" "favorites")}}
         {{end}}
     </div>
     {{else}}
