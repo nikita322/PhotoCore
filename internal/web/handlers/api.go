@@ -43,11 +43,10 @@ func (h *Handlers) Stats(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) QueueStats(w http.ResponseWriter, r *http.Request) {
 	stats := h.poolManager.Stats()
 	h.jsonResponse(w, map[string]interface{}{
-		"fast":               stats.Fast,
-		"slow":               stats.Slow,
-		"total_queue_length": h.poolManager.TotalQueueLength(),
-		"total_processing":   h.poolManager.TotalProcessingCount(),
-		"processing":         h.thumbService.ProcessingCount(),
+		"active_workers":  stats.Fast.ActiveWorkers + stats.Slow.ActiveWorkers,
+		"queued_tasks":    stats.Fast.QueuedTasks + stats.Slow.QueuedTasks,
+		"completed_tasks": stats.Fast.CompletedTasks + stats.Slow.CompletedTasks,
+		"total_tasks":     stats.Fast.TotalTasks + stats.Slow.TotalTasks,
 	})
 }
 
