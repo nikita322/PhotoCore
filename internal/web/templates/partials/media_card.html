@@ -315,6 +315,7 @@ body.select-mode .media-card.selected::after {
 <div class="md-card md-card-elevated media-card{{if or (eq $mode "gallery") (eq $mode "search") (eq $mode "favorites") (eq $mode "album")}} clickable{{end}}{{if eq $mode "trash"}} trash-mode{{end}}{{if .ExtraClasses}} {{.ExtraClasses}}{{end}}"
      data-id="{{$media.ID}}"
      data-filename="{{$media.Filename}}"
+     data-type="{{$media.Type}}"
      {{if not $media.TakenAt.IsZero}}data-taken-at="{{$takenAt}}"{{end}}
      {{if $meta}}data-meta="{{$meta}}"{{end}}
      {{if $onClick}}onclick="{{$onClick}}"{{else if or (eq $mode "gallery") (eq $mode "favorites") (eq $mode "album")}}onclick="openLightbox('{{$media.ID}}', '{{$media.Filename}}', '{{$takenAt}}', '{{$meta}}')"{{else if eq $mode "search"}}onclick="window.location='/view/{{$media.ID}}'"{{else if and (eq $mode "trash") .DuplicateOf}}onclick="showCompare('{{$media.ID}}', '{{.DuplicateOf}}', event)"{{else if eq $mode "trash"}}onclick="openLightbox('{{$media.ID}}', '{{$media.Filename}}', '{{$takenAt}}', '{{$meta}}')"{{end}}>

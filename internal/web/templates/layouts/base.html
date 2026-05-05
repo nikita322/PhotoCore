@@ -1634,7 +1634,8 @@ async function loadImageWithRetry(img, src, retryCount = 0, maxRetries = 15) {
     position: relative;
     overflow: hidden;
 }
-.lightbox-content img {
+.lightbox-content img,
+.lightbox-content video {
     max-width: calc(100% - 120px);
     max-height: 100%;
     object-fit: contain;
@@ -1796,6 +1797,7 @@ async function loadImageWithRetry(img, src, retryCount = 0, maxRetries = 15) {
             </svg>
         </button>
         <img id="lightbox-img" src="" alt="">
+        <video id="lightbox-video" controls playsinline style="display:none;"></video>
         <button class="lightbox-nav next" id="lb-next" onclick="lbNavigate(1)">
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>

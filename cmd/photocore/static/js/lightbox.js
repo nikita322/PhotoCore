@@ -38,23 +38,26 @@ window.openLightbox = function(id, filename, takenAt, meta) {
                 id: mediaId,
                 filename: card.dataset.filename || card.querySelector('img')?.alt || '',
                 takenAt: card.dataset.takenAt || '',
-                meta: card.dataset.meta || ''
+                meta: card.dataset.meta || '',
+                type: card.dataset.type || 'image'
             });
             if (mediaId === id) lbCurrentIndex = lbMediaList.length - 1;
         }
     });
 
-    lbShowMedia(id, filename, takenAt, meta);
+    const media = lbMediaList.find(m => m.id === id) || {};
+    lbShowMedia(id, filename, takenAt, meta, media.type);
     document.getElementById('lightbox').classList.add('active');
     document.body.style.overflow = 'hidden';
     lbUpdateNavButtons();
 }
 
 // === Show Media in Lightbox ===
-function lbShowMedia(id, filename, takenAt, meta) {
+function lbShowMedia(id, filename, takenAt, meta, type) {
     const isFavorite = window.favSet.has(id);
-    lbCurrentMedia = { id, filename, takenAt, meta, isFavorite };
+    lbCurrentMedia = { id, filename, takenAt, meta, isFavorite, type };
     const img = document.getElementById('lightbox-img');
+    const video = document.getElementById('lightbox-video');
     const loader = document.getElementById('lightbox-loader');
 
     // Инкрементируем версию загрузки для отмены предыдущих
@@ -87,9 +90,20 @@ function lbShowMedia(id, filename, takenAt, meta) {
     const thumbUrl = '/media/' + id + '/thumb/large';
     const fullUrl = '/media/' + id;
 
-    if (lbPreloadCache.has(fullUrl)) {
+    if (type === 'video') {
+        // Для видео показываем <video> вместо <img>
+        video.style.display = 'block';
+        video.src = fullUrl;
+        video.classList.add('fade-in');
+        setTimeout(() => video.classList.remove('fade-in'), 200);
+        img.style.display = 'none';
+        loader.classList.remove('active');
+    } else if (lbPreloadCache.has(fullUrl)) {
         // Полное изображение уже загружено - показываем сразу с fade-in
         console.log('[Lightbox] Using cached full image:', id);
+        video.style.display = 'none';
+        video.src = '';
+        img.style.display = '';
         loader.classList.remove('active');
         img.classList.remove('loading');
         img.classList.add('loaded', 'fade-in');
@@ -99,6 +113,9 @@ function lbShowMedia(id, filename, takenAt, meta) {
         setTimeout(() => img.classList.remove('fade-in'), 200);
     } else {
         // Показываем loader и превью
+        video.style.display = 'none';
+        video.src = '';
+        img.style.display = '';
         loader.classList.add('active');
         img.classList.remove('loaded', 'fade-in');
         img.classList.add('loading');
@@ -175,8 +192,8 @@ function lbPreloadAdjacent() {
         const media = lbMediaList[index];
         const fullUrl = '/media/' + media.id;
 
-        // Пропускаем если уже в кеше
-        if (lbPreloadCache.has(fullUrl)) {
+        // Пропускаем если уже в кеше или это видео
+        if (lbPreloadCache.has(fullUrl) || media.type === 'video') {
             return;
         }
 
@@ -199,7 +216,7 @@ function lbNavigate(direction) {
     if (newIndex < 0 || newIndex >= lbMediaList.length) return;
     lbCurrentIndex = newIndex;
     const media = lbMediaList[lbCurrentIndex];
-    lbShowMedia(media.id, media.filename, media.takenAt, media.meta);
+    lbShowMedia(media.id, media.filename, media.takenAt, media.meta, media.type);
     lbUpdateNavButtons();
 }
 
@@ -207,6 +224,14 @@ function lbNavigate(direction) {
 window.closeLightbox = function() {
     document.getElementById('lightbox').classList.remove('active');
     document.body.style.overflow = '';
+
+    // Останавливаем видео при закрытии
+    const video = document.getElementById('lightbox-video');
+    if (video) {
+        video.pause();
+        video.src = '';
+    }
+
     lbCurrentMedia = null;
 
     // Очищаем кеш предзагрузки для экономии памяти
@@ -334,7 +359,7 @@ function lbDelete() {
         else {
             if (lbCurrentIndex >= lbMediaList.length) lbCurrentIndex = lbMediaList.length - 1;
             const media = lbMediaList[lbCurrentIndex];
-            lbShowMedia(media.id, media.filename, media.takenAt, media.meta);
+            lbShowMedia(media.id, media.filename, media.takenAt, media.meta, media.type);
             lbUpdateNavButtons();
         }
     })
