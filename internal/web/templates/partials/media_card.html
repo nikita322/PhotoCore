@@ -310,7 +310,7 @@ body.select-mode .media-card.selected::after {
 {{/* Подготавливаем данные для onclick */}}
 {{$onClick := .OnClick}}
 {{$takenAt := ""}}{{if not $media.TakenAt.IsZero}}{{$takenAt = $media.TakenAt.Format (RFC3339)}}{{end}}
-{{$meta := ""}}{{if $media.Metadata.Camera}}{{$meta = $media.Metadata.Camera}}{{end}}{{if $media.Metadata.Aperture}}{{$meta = printf "%s • %s" $meta $media.Metadata.Aperture}}{{end}}{{if $media.Metadata.ShutterSpeed}}{{$meta = printf "%s • %s" $meta $media.Metadata.ShutterSpeed}}{{end}}{{if $media.Metadata.ISO}}{{$meta = printf "%s • ISO %s" $meta $media.Metadata.ISO}}{{end}}
+{{$meta := ""}}{{if $media.Metadata.Camera}}{{$meta = $media.Metadata.Camera}}{{end}}{{if $media.Metadata.Aperture}}{{$meta = printf "%s • %s" $meta $media.Metadata.Aperture}}{{end}}{{if $media.Metadata.ShutterSpeed}}{{$meta = printf "%s • %s" $meta $media.Metadata.ShutterSpeed}}{{end}}{{if $media.Metadata.ISO}}{{$meta = printf "%s • ISO %d" $meta $media.Metadata.ISO}}{{end}}
 
 <div class="md-card md-card-elevated media-card{{if or (eq $mode "gallery") (eq $mode "search") (eq $mode "favorites") (eq $mode "album")}} clickable{{end}}{{if eq $mode "trash"}} trash-mode{{end}}{{if .ExtraClasses}} {{.ExtraClasses}}{{end}}"
      data-id="{{$media.ID}}"
