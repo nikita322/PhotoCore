@@ -13,6 +13,7 @@ require (
 	github.com/h2non/filetype v1.1.3
 	go.etcd.io/bbolt v1.4.3
 	golang.org/x/crypto v0.46.0
+	golang.org/x/image v0.34.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -23,7 +24,6 @@ require (
 	github.com/golang/geo v0.0.0-20251223115337-4c285675e7fb // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
-	golang.org/x/image v0.34.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
