@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -103,20 +104,52 @@ func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		dst, err := os.Create(targetPath)
+		// Читаем файл в память для проверки exact-duplicate до записи на диск
+		var buf bytes.Buffer
+		_, err = io.Copy(&buf, src)
+		src.Close()
 		if err != nil {
-			src.Close()
-			messages = append(messages, "Failed to create "+uniqueFilename+": "+err.Error())
+			messages = append(messages, "Failed to read "+fileHeader.Filename+": "+err.Error())
 			errors++
 			continue
 		}
 
-		func() {
-			defer src.Close()
-			defer dst.Close()
-			_, err = io.Copy(dst, src)
-		}()
+		// Проверяем exact duplicate по SHA256 до записи на диск
+		checksum, err := scanner.CalculateChecksum(bytes.NewReader(buf.Bytes()))
+		if err != nil {
+			messages = append(messages, "Failed to calculate checksum for "+fileHeader.Filename+": "+err.Error())
+			errors++
+			continue
+		}
 
+		exactID, err := h.store.ChecksumExists(checksum)
+		if err == nil && exactID != "" {
+			existing, _ := h.store.GetMedia(exactID)
+			isDuplicate := false
+			if existing != nil {
+				if h.cfg.Scan.DuplicateCheckOriginalExists {
+					if _, err := os.Stat(existing.Path); err == nil {
+						isDuplicate = true
+					}
+				} else {
+					isDuplicate = true
+				}
+			}
+			if isDuplicate {
+				messages = append(messages, "Duplicate skipped: "+uniqueFilename+" (exact copy of "+existing.Filename+")")
+				continue
+			}
+		}
+
+		// Записываем файл на диск
+		dst, err := os.Create(targetPath)
+		if err != nil {
+			messages = append(messages, "Failed to create "+uniqueFilename+": "+err.Error())
+			errors++
+			continue
+		}
+		_, err = io.Copy(dst, bytes.NewReader(buf.Bytes()))
+		dst.Close()
 		if err != nil {
 			os.Remove(targetPath)
 			messages = append(messages, "Failed to save "+fileHeader.Filename+": "+err.Error())
@@ -145,6 +178,7 @@ func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
 			Size:       fileInfo.Size(),
 			ModifiedAt: fileInfo.ModTime(),
 			CreatedAt:  now,
+			Checksum:   checksum,
 		}
 
 		if mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw {
@@ -154,25 +188,29 @@ func (h *Handlers) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		}
 
 		isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
-		hashes, err := scanner.CalculateHashes(targetPath, isImage)
-		if err != nil {
-			logger.InfoLog.Printf("Warning: failed to calculate hashes for %s: %v", uniqueFilename, err)
-		} else {
-			mediaItem.Checksum = hashes.Checksum
-			mediaItem.ImageHash = hashes.ImageHash
+		if isImage {
+			imgHash, err := scanner.CalculateImageHash(targetPath, h.cfg.Tools.Dcraw)
+			if err != nil {
+				logger.InfoLog.Printf("Warning: failed to calculate image hash for %s: %v", uniqueFilename, err)
+			} else {
+				mediaItem.ImageHash = imgHash
+			}
 		}
 
-		dupResult, err := h.store.CheckDuplicate(
-			mediaItem.Size,
-			mediaItem.Checksum,
-			mediaItem.ImageHash,
-			isImage,
-			storage.DefaultDuplicateSimilarityThreshold,
-		)
-		if err == nil && dupResult != nil && dupResult.IsDuplicate {
-			mediaItem.DuplicateOf = dupResult.ExistingID
-			mediaItem.DeletedAt = &now
-			messages = append(messages, "Duplicate detected: "+uniqueFilename+" ("+string(dupResult.Type)+")")
+		if h.cfg.Scan.EnableDuplicateDetection {
+			dupResult, err := h.store.CheckDuplicate(
+				mediaItem.Size,
+				mediaItem.Checksum,
+				mediaItem.ImageHash,
+				isImage,
+				h.cfg.Scan.DuplicateSimilarityThreshold,
+				h.cfg.Scan.DuplicateCheckOriginalExists,
+			)
+			if err == nil && dupResult != nil && dupResult.IsDuplicate {
+				mediaItem.DuplicateOf = dupResult.ExistingID
+				mediaItem.DeletedAt = &now
+				messages = append(messages, "Duplicate detected: "+uniqueFilename+" ("+string(dupResult.Type)+")")
+			}
 		}
 
 		if err := h.store.SaveMedia(mediaItem); err != nil {

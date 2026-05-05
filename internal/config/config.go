@@ -48,7 +48,10 @@ type AuthConfig struct {
 
 // ScanConfig содержит настройки сканирования файлов
 type ScanConfig struct {
-	Extensions ExtensionsConfig `yaml:"extensions"` // Расширения по типам медиа
+	Extensions                   ExtensionsConfig `yaml:"extensions"`                      // Расширения по типам медиа
+	DuplicateSimilarityThreshold int              `yaml:"duplicate_similarity_threshold"`  // Порог Hamming distance для визуальных дубликатов
+	EnableDuplicateDetection     bool             `yaml:"enable_duplicate_detection"`      // Включить детекцию дубликатов
+	DuplicateCheckOriginalExists bool             `yaml:"duplicate_check_original_exists"` // Проверять существование оригинала на диске
 }
 
 // ExtensionsConfig содержит списки расширений файлов
@@ -83,18 +86,19 @@ func Load(path string) (*Config, error) {
 }
 
 const (
-	defaultServerHost    = "0.0.0.0"
-	defaultServerPort    = 8080
-	defaultCachePath     = "./cache"
-	defaultDBPath        = "./data/photocore.db"
-	defaultLogsPath      = "./logs"
-	defaultThumbSmall    = 300
-	defaultThumbMedium   = 600
-	defaultThumbLarge    = 1200
-	defaultThumbQuality  = 85
-	defaultSessionMaxAge = 86400
-	defaultToolDcraw     = "dcraw"
-	defaultToolFfmpeg    = "ffmpeg"
+	defaultServerHost                   = "0.0.0.0"
+	defaultServerPort                   = 8080
+	defaultCachePath                    = "./cache"
+	defaultDBPath                       = "./data/photocore.db"
+	defaultLogsPath                     = "./logs"
+	defaultThumbSmall                   = 300
+	defaultThumbMedium                  = 600
+	defaultThumbLarge                   = 1200
+	defaultThumbQuality                 = 85
+	defaultSessionMaxAge                = 86400
+	defaultToolDcraw                    = "dcraw"
+	defaultToolFfmpeg                   = "ffmpeg"
+	defaultDuplicateSimilarityThreshold = 10
 )
 
 func (c *Config) setDefaults() {
@@ -134,6 +138,11 @@ func (c *Config) setDefaults() {
 	if c.Tools.Ffmpeg == "" {
 		c.Tools.Ffmpeg = defaultToolFfmpeg
 	}
+	if c.Scan.DuplicateSimilarityThreshold == 0 {
+		c.Scan.DuplicateSimilarityThreshold = defaultDuplicateSimilarityThreshold
+	}
+	c.Scan.EnableDuplicateDetection = true
+	c.Scan.DuplicateCheckOriginalExists = true
 }
 
 // AllExtensions возвращает все поддерживаемые расширения

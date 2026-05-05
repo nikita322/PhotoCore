@@ -212,7 +212,7 @@ func (s *Scanner) scan() {
 			// Вычисляем хеши для новых файлов или если они отсутствуют
 			if media.Checksum == "" {
 				isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
-				hashes, err := CalculateHashes(path, isImage)
+				hashes, err := CalculateHashes(path, isImage, s.cfg.Tools.Dcraw, "")
 				if err != nil {
 					logger.InfoLog.Printf("Error calculating hashes for %s: %v", path, err)
 				} else {
@@ -222,10 +222,16 @@ func (s *Scanner) scan() {
 			}
 
 			// Проверяем на дубликаты (только для новых файлов)
-			// Гибридный подход: 1) размер ±10%, 2) SHA256, 3) pHash
-			if existing == nil {
+			if existing == nil && s.cfg.Scan.EnableDuplicateDetection {
 				isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
-				dupResult, err := s.store.CheckDuplicate(media.Size, media.Checksum, media.ImageHash, isImage, storage.DefaultDuplicateSimilarityThreshold)
+				dupResult, err := s.store.CheckDuplicate(
+					media.Size,
+					media.Checksum,
+					media.ImageHash,
+					isImage,
+					s.cfg.Scan.DuplicateSimilarityThreshold,
+					s.cfg.Scan.DuplicateCheckOriginalExists,
+				)
 				if err != nil {
 					logger.InfoLog.Printf("Error checking duplicates for %s: %v", path, err)
 				} else if dupResult.IsDuplicate {

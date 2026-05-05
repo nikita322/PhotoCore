@@ -13,7 +13,7 @@ func TestCalculateHashesNonImage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := CalculateHashes(path, false)
+	result, err := CalculateHashes(path, false, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,12 +33,12 @@ func TestCalculateHashesDeterministic(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result1, err := CalculateHashes(path, false)
+	result1, err := CalculateHashes(path, false, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	result2, err := CalculateHashes(path, false)
+	result2, err := CalculateHashes(path, false, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

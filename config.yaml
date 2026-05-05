@@ -49,6 +49,9 @@ scan:
       - ".orf"
       - ".raf"
       - ".rw2"
+  duplicate_similarity_threshold: 10   # Порог Hamming distance для визуальных дубликатов
+  enable_duplicate_detection: true     # Включить детекцию дубликатов
+  duplicate_check_original_exists: true # Проверять существование оригинала на диске
 
 # Внешние инструменты (для RAW и видео)
 tools:

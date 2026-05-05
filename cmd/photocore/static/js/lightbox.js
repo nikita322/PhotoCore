@@ -7,7 +7,7 @@ console.log('[Lightbox] Loading lightbox.js module');
 window.favSet = window.favSet || new Set();
 
 // === Lightbox State ===
-let lbMediaList = [], lbCurrentIndex = 0, lbCurrentMedia = null, lbTouchStartX = 0, lbTouchEndX = 0;
+let lbMediaList = [], lbCurrentIndex = 0, lbCurrentMedia = null;
 let lbLoadVersion = 0; // Счетчик версий для отмены устаревших загрузок
 let lbPreloadCache = new Map(); // Кеш предзагруженных изображений
 
@@ -230,21 +230,7 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// === Touch swipe navigation ===
-document.addEventListener('DOMContentLoaded', function() {
-    const lightbox = document.getElementById('lightbox');
-    if (lightbox) {
-        lightbox.addEventListener('touchstart', function(e) {
-            lbTouchStartX = e.changedTouches[0].screenX;
-        }, { passive: true });
 
-        lightbox.addEventListener('touchend', function(e) {
-            lbTouchEndX = e.changedTouches[0].screenX;
-            const diff = lbTouchStartX - lbTouchEndX;
-            if (Math.abs(diff) > 50) lbNavigate(diff > 0 ? 1 : -1);
-        }, { passive: true });
-    }
-});
 
 // === Lightbox Actions ===
 function lbToggleFavorite() {

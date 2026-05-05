@@ -26,9 +26,11 @@ var (
 	bucketIdxDir    = []byte("idx_dir")
 	bucketIdxDate   = []byte("idx_date")
 	bucketIdxTag    = []byte("idx_tag")
-	bucketFavorites = []byte("favorites")
-	bucketUserFav   = []byte("userfav")
-	bucketAPITokens = []byte("api_tokens")
+	bucketFavorites  = []byte("favorites")
+	bucketUserFav    = []byte("userfav")
+	bucketAPITokens  = []byte("api_tokens")
+	bucketIdxChecksum = []byte("idx_checksum")
+	bucketIdxHash    = []byte("idx_hash")
 )
 
 // FormatYearMonth форматирует дату как YYYY-MM для группировки timeline
@@ -85,6 +87,7 @@ func NewStore(dbPath string) (*Store, error) {
 			bucketMedia, bucketUsers, bucketSessions, bucketAlbums,
 			bucketTags, bucketIdxDir, bucketIdxDate, bucketIdxTag,
 			bucketFavorites, bucketUserFav, bucketAPITokens,
+			bucketIdxChecksum, bucketIdxHash,
 		}
 		for _, name := range buckets {
 			if _, err := tx.CreateBucketIfNotExists(name); err != nil {

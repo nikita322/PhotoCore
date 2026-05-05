@@ -293,7 +293,7 @@ func handleFileEvent(event scanner.FileEvent, cfg *config.Config, store *storage
 		// Вычисляем хеши для новых файлов или если они отсутствуют
 		if m.Checksum == "" {
 			isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
-			hashes, err := scanner.CalculateHashes(event.Path, isImage)
+			hashes, err := scanner.CalculateHashes(event.Path, isImage, cfg.Tools.Dcraw, "")
 			if err != nil {
 				logger.InfoLog.Printf("Watcher: failed to calculate hashes for %s: %v", event.Path, err)
 			} else {
@@ -307,7 +307,7 @@ func handleFileEvent(event scanner.FileEvent, cfg *config.Config, store *storage
 		// Гибридный подход: 1) размер ±10%, 2) SHA256, 3) pHash
 		if existingMedia == nil {
 			isImage := mediaType == storage.MediaTypeImage || mediaType == storage.MediaTypeRaw
-			dupResult, err := store.CheckDuplicate(m.Size, m.Checksum, m.ImageHash, isImage, storage.DefaultDuplicateSimilarityThreshold)
+			dupResult, err := store.CheckDuplicate(m.Size, m.Checksum, m.ImageHash, isImage, cfg.Scan.DuplicateSimilarityThreshold, cfg.Scan.DuplicateCheckOriginalExists)
 			if err != nil {
 				logger.InfoLog.Printf("Watcher: failed to check duplicates for %s: %v", event.Path, err)
 			} else if dupResult.IsDuplicate {

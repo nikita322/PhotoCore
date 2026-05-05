@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 
 	bolt "go.etcd.io/bbolt"
 )
@@ -9,6 +10,13 @@ import (
 // SaveMedia сохраняет медиа-файл
 func (s *Store) SaveMedia(m *Media) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
+		// Загружаем старую запись для обновления индексов
+		var old *Media
+		if oldData := tx.Bucket(bucketMedia).Get([]byte(m.ID)); oldData != nil {
+			old = new(Media)
+			json.Unmarshal(oldData, old)
+		}
+
 		data, err := json.Marshal(m)
 		if err != nil {
 			return err
@@ -26,6 +34,32 @@ func (s *Store) SaveMedia(m *Media) error {
 		if !m.TakenAt.IsZero() {
 			dateKey := FormatYearMonth(m.TakenAt)
 			if err := addToIndex(tx, bucketIdxDate, dateKey, m.ID); err != nil {
+				return err
+			}
+		}
+
+		// Обновляем checksum index: удаляем старый, добавляем новый
+		if old != nil && old.Checksum != "" && old.Checksum != m.Checksum {
+			if err := removeFromIndex(tx, bucketIdxChecksum, old.Checksum, m.ID); err != nil {
+				return err
+			}
+		}
+		if m.Checksum != "" {
+			if err := addToIndex(tx, bucketIdxChecksum, m.Checksum, m.ID); err != nil {
+				return err
+			}
+		}
+
+		// Обновляем hash index: удаляем старый, добавляем новый
+		if old != nil && old.ImageHash != 0 && old.ImageHash != m.ImageHash {
+			oldHashKey := fmt.Sprintf("%016x", old.ImageHash)
+			if err := removeFromIndex(tx, bucketIdxHash, oldHashKey, m.ID); err != nil {
+				return err
+			}
+		}
+		if m.ImageHash != 0 {
+			hashKey := fmt.Sprintf("%016x", m.ImageHash)
+			if err := addToIndex(tx, bucketIdxHash, hashKey, m.ID); err != nil {
 				return err
 			}
 		}
@@ -87,6 +121,19 @@ func (s *Store) DeleteMedia(id string) error {
 		if !media.TakenAt.IsZero() {
 			dateKey := FormatYearMonth(media.TakenAt)
 			if err := removeFromIndex(tx, bucketIdxDate, dateKey, id); err != nil {
+				return err
+			}
+		}
+
+		if media.Checksum != "" {
+			if err := removeFromIndex(tx, bucketIdxChecksum, media.Checksum, id); err != nil {
+				return err
+			}
+		}
+
+		if media.ImageHash != 0 {
+			hashKey := fmt.Sprintf("%016x", media.ImageHash)
+			if err := removeFromIndex(tx, bucketIdxHash, hashKey, id); err != nil {
 				return err
 			}
 		}
